@@ -10,6 +10,7 @@ import * as path from 'path';
 
 import databaseConfig from './config/database.config';
 import appConfig from './config/app.config';
+import { getRedisConnectionOptions } from './config/redis.config';
 
 import { HealthModule } from './modules/health/health.module';
 import { StellarModule } from './stellar/stellar.module';
@@ -82,10 +83,7 @@ dotenv.config({
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        redis: {
-          host: configService.get("REDIS_HOST", "localhost"),
-          port: configService.get("REDIS_PORT", 6379),
-        },
+        redis: getRedisConnectionOptions(configService),
       }),
     }),
 
