@@ -1,60 +1,129 @@
-use crate::types::Metadata;
+#![no_std]
 
-#[contracttype]
-pub struct Escrow {
-    pub creator: Address,
-    pub amount: i128,
-    pub active: bool,
-    pub metadata: Option<Metadata>, // NEW
-}
+use soroban_sdk::{contract, contractimpl, token, Address, Env, String};
 
-Update create_escrow()
-    pub fn create_escrow(env: Env, creator: Address, amount: i128, metadata: Option<Map<String, String>>) -> Escrow {
-    let mut md = metadata.map(|m| {
-        let mut meta = Metadata::new(&env);
-        for (k, v) in m.iter() {
-            meta.insert(k.clone(), v.clone()).expect("Metadata insert failed");
+mod errors;
+mod events;
+mod fees;
+mod storage;
+mod test;
+mod types;
+
+pub use crate::errors::Error;
+pub use crate::types::{Split, SplitStatus};
+
+#[contract]
+pub struct SplitEscrowContract;
+
+#[contractimpl]
+impl SplitEscrowContract {
+    pub fn initialize(env: Env, admin: Address, token_address: Address) -> Result<(), Error> {
+        if storage::has_admin(&env) {
+            return Err(Error::AlreadyInitialized);
         }
-        meta
-    });
-
-    Escrow {
-        creator,
-        amount,
-        active: true,
-        metadata: md,
-    }
-}
-get_metadata()
-pub fn get_metadata(env: Env, escrow: &Escrow) -> Option<Map<String, String>> {
-    escrow.metadata.as_ref().map(|md| {
-        let mut result = Map::new(&env);
-        for (k, v) in md.data.iter() {
-            result.insert(k.to_string(), v.to_string());
-        }
-        result
-    })
-}
-update_metadata()
-pub fn update_metadata(env: Env, escrow: &mut Escrow, caller: Address, updates: Map<String, String>) -> Result<(), &'static str> {
-    if caller != escrow.creator {
-        return Err("Only creator can update metadata");
-    }
-    if !escrow.active {
-        return Err("Escrow not active");
+        admin.require_auth();
+        storage::set_admin(&env, &admin);
+        storage::set_token(&env, &token_address);
+        storage::set_fee_bps(&env, 0u32);
+        events::emit_initialized(&env, &admin);
+        Ok(())
     }
 
-    if let Some(ref mut md) = escrow.metadata {
-        for (k, v) in updates.iter() {
-            md.update(k.to_string(), v.to_string())?;
+    pub fn create_split(
+        env: Env,
+        creator: Address,
+        description: String,
+        total_amount: i128,
+    ) -> Result<u64, Error> {
+        if !storage::has_admin(&env) {
+            return Err(Error::NotInitialized);
         }
-    } else {
-        let mut md = Metadata::new(&env);
-        for (k, v) in updates.iter() {
-            md.insert(k.to_string(), v.to_string())?;
+        creator.require_auth();
+        if total_amount <= 0 {
+            return Err(Error::InvalidAmount);
         }
-        escrow.metadata = Some(md);
+
+        let split_id = storage::get_next_split_id(&env);
+        storage::bump_next_split_id(&env);
+
+        let split = Split {
+            split_id,
+            creator,
+            description,
+            total_amount,
+            deposited_amount: 0,
+            status: SplitStatus::Pending,
+        };
+        storage::set_split(&env, &split);
+        events::emit_split_created(&env, &split);
+        Ok(split_id)
     }
 
-    Ok(())
+    pub fn deposit(
+        env: Env,
+        split_id: u64,
+        participant: Address,
+        amount: i128,
+    ) -> Result<(), Error> {
+        participant.require_auth();
+        if amount <= 0 {
+            return Err(Error::InvalidAmount);
+        }
+
+        let mut split = storage::get_split(&env, split_id).ok_or(Error::SplitNotFound)?;
+        if split.status != SplitStatus::Pending {
+            return Err(Error::SplitNotPending);
+        }
+        if split.deposited_amount + amount > split.total_amount {
+            return Err(Error::InvalidAmount);
+        }
+
+        let token_address = storage::get_token(&env);
+        let token_client = token::Client::new(&env, &token_address);
+        token_client.transfer(&participant, &env.current_contract_address(), &amount);
+
+        split.deposited_amount += amount;
+        if split.deposited_amount == split.total_amount {
+            split.status = SplitStatus::Ready;
+        }
+        storage::set_split(&env, &split);
+        events::emit_deposit(&env, split_id, &participant, amount);
+        Ok(())
+    }
+
+    pub fn release_funds(env: Env, split_id: u64) -> Result<(), Error> {
+        let mut split = storage::get_split(&env, split_id).ok_or(Error::SplitNotFound)?;
+        if split.status != SplitStatus::Ready {
+            return Err(Error::SplitNotReady);
+        }
+
+        let total = split.deposited_amount;
+        let fee_amount = fees::collect_fee(&env, total)?;
+        let creator_amount = total - fee_amount;
+
+        let token_address = storage::get_token(&env);
+        let token_client = token::Client::new(&env, &token_address);
+        token_client.transfer(
+            &env.current_contract_address(),
+            &split.creator,
+            &creator_amount,
+        );
+
+        split.status = SplitStatus::Released;
+        storage::set_split(&env, &split);
+        events::emit_released(&env, split_id, creator_amount);
+        Ok(())
+    }
+
+    pub fn set_fee(env: Env, fee_bps: u32) -> Result<(), Error> {
+        fees::set_fee(&env, fee_bps)
+    }
+
+    pub fn set_treasury(env: Env, address: Address) -> Result<(), Error> {
+        fees::set_treasury(&env, &address)
+    }
+
+    pub fn get_split(env: Env, split_id: u64) -> Result<Split, Error> {
+        storage::get_split(&env, split_id).ok_or(Error::SplitNotFound)
+    }
 }
