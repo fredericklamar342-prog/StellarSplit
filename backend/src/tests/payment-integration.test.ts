@@ -9,9 +9,13 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { StellarService } from '../stellar/stellar.service';
 import { PaymentProcessorService } from '../payments/payment-processor.service';
 import { PaymentGateway } from '../websocket/payment.gateway';
+import { EventsGateway } from '../gateway/events.gateway';
 import { Payment } from '../entities/payment.entity';
 import { Participant } from '../entities/participant.entity';
 import { Split } from '../entities/split.entity';
+import { EmailService } from '../email/email.service';
+import { MultiCurrencyService } from '../multi-currency/multi-currency.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 describe('Payment Integration Tests', () => {
   let service: PaymentProcessorService;
@@ -36,6 +40,14 @@ describe('Payment Integration Tests', () => {
           },
         },
         {
+          provide: EventsGateway,
+          useValue: {
+            emitPaymentReceived: jest.fn(),
+            emitSplitUpdated: jest.fn(),
+            emitParticipantJoined: jest.fn(),
+          },
+        },
+        {
           provide: getRepositoryToken(Payment),
           useClass: Repository,
         },
@@ -46,6 +58,25 @@ describe('Payment Integration Tests', () => {
         {
           provide: getRepositoryToken(Split),
           useClass: Repository,
+        },
+        {
+          provide: EmailService,
+          useValue: {
+            sendPaymentConfirmation: jest.fn(),
+            sendSplitCompletedNotification: jest.fn(),
+          },
+        },
+        {
+          provide: MultiCurrencyService,
+          useValue: {
+            processMultiCurrencyPayment: jest.fn(),
+          },
+        },
+        {
+          provide: AnalyticsService,
+          useValue: {
+            trackPaymentProcessed: jest.fn(),
+          },
         },
       ],
     }).compile();

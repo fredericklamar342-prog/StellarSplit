@@ -1,11 +1,10 @@
 //! # Storage Module for Multi-Signature Splits Contract
 
-use soroban_sdk::{Address, Env, String, Symbol, symbol_short};
 use crate::types::*;
+use soroban_sdk::{symbol_short, Address, Env, String, Symbol};
 
 /// Storage keys
 const ADMIN: Symbol = symbol_short!("ADMIN");
-
 
 /// Set the admin address
 pub fn set_admin(env: &Env, admin: &Address) {

@@ -31,6 +31,7 @@ import { BlockchainClient } from './blockchain.client';
 import {
   DisputeCreatedEvent,
   DisputeEvidenceAddedEvent,
+  DisputeEvidenceCollectionStartedEvent,
   DisputeUnderReviewEvent,
   DisputeResolvedEvent,
   DisputeRejectedEvent,
@@ -230,6 +231,14 @@ export class DisputesService {
 
     const savedEvidence = await this.evidenceRepository.save(evidence);
 
+    if (dispute.status === DisputeStatus.OPEN) {
+      dispute.status = DisputeStatus.EVIDENCE_COLLECTION;
+      this.addAuditTrail(dispute, 'status_changed_to_evidence_collection', uploadedBy, {
+        previousStatus: DisputeStatus.OPEN,
+        newStatus: DisputeStatus.EVIDENCE_COLLECTION,
+      });
+    }
+
     // Add to dispute's evidence array
     dispute.evidence = dispute.evidence || [];
     dispute.evidence.push({
@@ -257,6 +266,13 @@ export class DisputesService {
     dispute.auditTrail.push(auditEntry);
 
     await this.disputeRepository.save(dispute);
+
+    if (dispute.status === DisputeStatus.EVIDENCE_COLLECTION) {
+      this.eventEmitter.emit(
+        'dispute.evidence_collection_started',
+        new DisputeEvidenceCollectionStartedEvent(dispute),
+      );
+    }
 
     // Emit event
     this.eventEmitter.emit(
@@ -405,6 +421,7 @@ export class DisputesService {
       dispute.resolution = resolveDisputeDto.resolution;
       dispute.resolvedBy = resolvedBy;
       dispute.resolvedAt = new Date();
+      dispute.splitFrozen = false;
       dispute.resolutionOutcome = {
         outcome: resolveDisputeDto.outcome,
         details: resolveDisputeDto.details || {},
@@ -449,7 +466,7 @@ export class DisputesService {
       // Attempt to execute on-chain resolution (best-effort) and persist tx hash
       try {
         const { txHash } = await this.blockchainClient.executeResolution(
-          resolveDisputeDto.disputeId,
+          updatedDispute.id,
           resolveDisputeDto.outcome,
           resolveDisputeDto.details || {},
         );
@@ -520,6 +537,7 @@ export class DisputesService {
       dispute.resolution = reason;
       dispute.resolvedBy = performedBy;
       dispute.resolvedAt = new Date();
+      dispute.splitFrozen = false;
 
       this.addAuditTrail(dispute, 'dispute_rejected', performedBy, {
         reason,
@@ -615,6 +633,7 @@ export class DisputesService {
       originalDispute.status = DisputeStatus.APPEALED;
       originalDispute.appealReason = appealDisputeDto.appealReason;
       originalDispute.appealedAt = new Date();
+      originalDispute.splitFrozen = true;
 
       this.addAuditTrail(originalDispute, 'dispute_appealed', appealedBy, {
         appealReason: appealDisputeDto.appealReason.substring(0, 100),
@@ -638,7 +657,7 @@ export class DisputesService {
           appealedDispute,
           appealedBy,
           appealDisputeDto.appealReason,
-          appealDisputeDto.disputeId,
+          originalDispute.id,
         ),
       );
       this.eventEmitter.emit(

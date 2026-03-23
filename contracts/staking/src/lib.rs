@@ -1,6 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, Address, Env, token};
+use soroban_sdk::{contract, contractimpl, token, Address, Env};
 
 mod errors;
 mod events;
@@ -138,11 +138,16 @@ impl StakingContract {
     }
 
     /// Delegate voting power to another address
-    pub fn delegate_voting_power(env: Env, delegator: Address, delegatee: Option<Address>) -> Result<(), Error> {
+    pub fn delegate_voting_power(
+        env: Env,
+        delegator: Address,
+        delegatee: Option<Address>,
+    ) -> Result<(), Error> {
         delegator.require_auth();
 
-        let mut info = storage::get_staker_info(&env, &delegator).ok_or(Error::InsufficientStake)?;
-        
+        let mut info =
+            storage::get_staker_info(&env, &delegator).ok_or(Error::InsufficientStake)?;
+
         // Remove old delegation
         if let Some(old_delegatee) = &info.delegated_to {
             let delegated_amount = storage::get_delegated_amount(&env, old_delegatee);
@@ -167,7 +172,7 @@ impl StakingContract {
         staker.require_auth();
 
         let mut info = storage::get_staker_info(&env, &staker).ok_or(Error::InsufficientStake)?;
-        
+
         if info.pending_withdrawal <= 0 {
             return Err(Error::InvalidAmount);
         }
@@ -224,7 +229,9 @@ impl StakingContract {
 
     /// Get total voting power (staked + delegated)
     pub fn get_voting_power(env: Env, address: Address) -> i128 {
-        let staked = storage::get_staker_info(&env, &address).map(|i| i.amount).unwrap_or(0);
+        let staked = storage::get_staker_info(&env, &address)
+            .map(|i| i.amount)
+            .unwrap_or(0);
         let delegated = storage::get_delegated_amount(&env, &address);
         staked + delegated
     }
@@ -240,7 +247,7 @@ impl StakingContract {
             let scaling_factor = 1_000_000_000_000i128;
             let delta = global_index - info.last_reward_index;
             let earned = (info.amount * delta) / scaling_factor;
-            
+
             info.accumulated_rewards += earned;
             info.last_reward_index = global_index;
             storage::set_staker_info(env, staker, &info);

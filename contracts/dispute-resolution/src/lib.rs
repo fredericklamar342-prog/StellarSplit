@@ -7,8 +7,8 @@ mod types;
 #[cfg(test)]
 mod test;
 
-use soroban_sdk::{contract, contractimpl, Bytes, Env, String, Address};
 use errors::Error;
+use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, String};
 use types::{DataKey, Dispute, DisputeResult, DisputeStatus};
 
 const VOTING_PERIOD: u64 = 604_800; // 7 days in seconds
@@ -30,7 +30,6 @@ pub struct DisputeContract;
 
 #[contractimpl]
 impl DisputeContract {
-
     /// Raise a new dispute against a split.
     pub fn raise_dispute(
         env: Env,
@@ -110,10 +109,7 @@ impl DisputeContract {
     }
 
     /// Resolve a dispute after voting period ends.
-    pub fn resolve_dispute(
-        env: Env,
-        dispute_id: String,
-    ) -> Result<DisputeResult, Error> {
+    pub fn resolve_dispute(env: Env, dispute_id: String) -> Result<DisputeResult, Error> {
         let mut dispute = storage::get_dispute(&env, &dispute_id)?;
 
         if dispute.status != DisputeStatus::Voting {
@@ -150,10 +146,7 @@ impl DisputeContract {
     }
 
     /// Get a dispute record.
-    pub fn get_dispute(
-        env: Env,
-        dispute_id: String,
-    ) -> Result<Dispute, Error> {
+    pub fn get_dispute(env: Env, dispute_id: String) -> Result<Dispute, Error> {
         storage::get_dispute(&env, &dispute_id)
     }
 

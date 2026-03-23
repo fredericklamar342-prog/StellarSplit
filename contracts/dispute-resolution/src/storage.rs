@@ -1,6 +1,6 @@
-use soroban_sdk::{Env, String, Address, Vec};
-use crate::types::{DataKey, Dispute};
 use crate::errors::Error;
+use crate::types::{DataKey, Dispute};
+use soroban_sdk::{Address, Env, String, Vec};
 
 pub fn save_dispute(env: &Env, dispute: &Dispute) {
     env.storage()
@@ -28,9 +28,7 @@ pub fn add_to_list(env: &Env, dispute_id: String) {
         .get(&DataKey::DisputeList)
         .unwrap_or(Vec::new(env));
     list.push_back(dispute_id);
-    env.storage()
-        .persistent()
-        .set(&DataKey::DisputeList, &list);
+    env.storage().persistent().set(&DataKey::DisputeList, &list);
 }
 
 pub fn get_list(env: &Env) -> Vec<String> {
@@ -47,7 +45,8 @@ pub fn has_voted(env: &Env, dispute_id: &String, voter: &Address) -> bool {
 }
 
 pub fn record_vote(env: &Env, dispute_id: &String, voter: &Address) {
-    env.storage()
-        .persistent()
-        .set(&DataKey::VoterRecord(dispute_id.clone(), voter.clone()), &true);
+    env.storage().persistent().set(
+        &DataKey::VoterRecord(dispute_id.clone(), voter.clone()),
+        &true,
+    );
 }

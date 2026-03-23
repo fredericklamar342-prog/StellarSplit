@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsUUID, IsNotEmpty, IsOptional, MaxLength, MinLength, IsArray } from 'class-validator';
+import { IsString, IsEnum, IsUUID, IsNotEmpty, IsOptional, MaxLength, MinLength } from 'class-validator';
 import { DisputeType, DisputeStatus } from '../../entities/dispute.entity';
 
 export class FileDisputeDto {
@@ -18,9 +18,9 @@ export class FileDisputeDto {
 }
 
 export class AddEvidenceDto {
+  @IsOptional()
   @IsUUID()
-  @IsNotEmpty()
-  disputeId!: string;
+  disputeId?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -46,15 +46,15 @@ export class AddEvidenceDto {
 }
 
 export class SubmitForReviewDto {
+  @IsOptional()
   @IsUUID()
-  @IsNotEmpty()
-  disputeId!: string;
+  disputeId?: string;
 }
 
 export class ResolveDisputeDto {
+  @IsOptional()
   @IsUUID()
-  @IsNotEmpty()
-  disputeId!: string;
+  disputeId?: string;
 
   @IsEnum(['adjust_balances', 'refund', 'cancel_split', 'no_change'])
   @IsNotEmpty()
@@ -71,9 +71,9 @@ export class ResolveDisputeDto {
 }
 
 export class AppealDisputeDto {
+  @IsOptional()
   @IsUUID()
-  @IsNotEmpty()
-  disputeId!: string;
+  disputeId?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -109,9 +109,9 @@ export class QueryDisputesDto {
 }
 
 export class RequestMoreEvidenceDto {
+  @IsOptional()
   @IsUUID()
-  @IsNotEmpty()
-  disputeId!: string;
+  disputeId?: string;
 
   @IsString()
   @IsNotEmpty()

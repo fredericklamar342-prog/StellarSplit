@@ -4,6 +4,7 @@ import {
   Get,
   Body,
   Param,
+  ParseUUIDPipe,
   Query,
   UseGuards,
   HttpCode,
@@ -60,7 +61,7 @@ export class DisputesController {
   @Post(':disputeId/evidence')
   @HttpCode(HttpStatus.CREATED)
   async addEvidence(
-    @Param('disputeId') disputeId: string,
+    @Param('disputeId', ParseUUIDPipe) disputeId: string,
     @Body(ValidationPipe) addEvidenceDto: AddEvidenceDto,
   ): Promise<DisputeEvidence> {
     // TODO: Extract from auth
@@ -78,7 +79,7 @@ export class DisputesController {
    */
   @Get(':disputeId/evidence')
   async getDisputeEvidence(
-    @Param('disputeId') disputeId: string,
+    @Param('disputeId', ParseUUIDPipe) disputeId: string,
   ): Promise<DisputeEvidence[]> {
     return this.disputesService.getDisputeEvidence(disputeId);
   }
@@ -91,7 +92,7 @@ export class DisputesController {
   @Post(':disputeId/submit-review')
   @HttpCode(HttpStatus.OK)
   async submitForReview(
-    @Param('disputeId') disputeId: string,
+    @Param('disputeId', ParseUUIDPipe) disputeId: string,
     @Body(ValidationPipe) submitForReviewDto: SubmitForReviewDto,
   ): Promise<Dispute> {
     // TODO: Extract from auth
@@ -113,7 +114,7 @@ export class DisputesController {
   // @UseGuards(AuthGuard('jwt'), RolesGuard)
   // @Roles('admin', 'moderator')
   async resolveDispute(
-    @Param('disputeId') disputeId: string,
+    @Param('disputeId', ParseUUIDPipe) disputeId: string,
     @Body(ValidationPipe) resolveDisputeDto: ResolveDisputeDto,
   ): Promise<Dispute> {
     // TODO: Extract from auth
@@ -135,7 +136,7 @@ export class DisputesController {
   // @UseGuards(AuthGuard('jwt'), RolesGuard)
   // @Roles('admin', 'moderator')
   async rejectDispute(
-    @Param('disputeId') disputeId: string,
+    @Param('disputeId', ParseUUIDPipe) disputeId: string,
     @Body() body: { reason: string },
   ): Promise<Dispute> {
     // TODO: Extract from auth
@@ -151,7 +152,7 @@ export class DisputesController {
   @Post(':disputeId/appeal')
   @HttpCode(HttpStatus.OK)
   async appealDispute(
-    @Param('disputeId') disputeId: string,
+    @Param('disputeId', ParseUUIDPipe) disputeId: string,
     @Body(ValidationPipe) appealDisputeDto: AppealDisputeDto,
   ): Promise<Dispute> {
     // TODO: Extract from auth
@@ -172,7 +173,7 @@ export class DisputesController {
   // @UseGuards(AuthGuard('jwt'), RolesGuard)
   // @Roles('admin', 'moderator')
   async requestMoreEvidence(
-    @Param('disputeId') disputeId: string,
+    @Param('disputeId', ParseUUIDPipe) disputeId: string,
     @Body(ValidationPipe) requestDto: RequestMoreEvidenceDto,
   ): Promise<Dispute> {
     // TODO: Extract from auth
@@ -184,23 +185,27 @@ export class DisputesController {
   }
 
   /**
-   * GET DISPUTE BY ID
-   * GET /disputes/:disputeId
-   * Retrieves full dispute details including audit trail
-   */
-  @Get(':disputeId')
-  async getDisputeById(@Param('disputeId') disputeId: string): Promise<Dispute> {
-    return this.disputesService.getDisputeById(disputeId);
-  }
-
-  /**
    * GET DISPUTES BY SPLIT
    * GET /disputes/split/:splitId
    * Retrieves all disputes for a specific split
    */
   @Get('split/:splitId')
-  async getDisputesBySplit(@Param('splitId') splitId: string): Promise<Dispute[]> {
+  async getDisputesBySplit(
+    @Param('splitId', ParseUUIDPipe) splitId: string,
+  ): Promise<Dispute[]> {
     return this.disputesService.getDisputesBySplit(splitId);
+  }
+
+  /**
+   * GET DISPUTE BY ID
+   * GET /disputes/:disputeId
+   * Retrieves full dispute details including audit trail
+   */
+  @Get(':disputeId')
+  async getDisputeById(
+    @Param('disputeId', ParseUUIDPipe) disputeId: string,
+  ): Promise<Dispute> {
+    return this.disputesService.getDisputeById(disputeId);
   }
 
   /**
@@ -225,7 +230,7 @@ export class DisputesController {
    */
   @Get(':disputeId/audit-trail')
   async getDisputeAuditTrail(
-    @Param('disputeId') disputeId: string,
+    @Param('disputeId', ParseUUIDPipe) disputeId: string,
   ): Promise<AuditTrailEntry[]> {
     return this.disputesService.getDisputeAuditTrail(disputeId);
   }

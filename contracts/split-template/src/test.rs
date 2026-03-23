@@ -2,15 +2,17 @@
 
 #[cfg(test)]
 mod tests {
-    use soroban_sdk::{testutils::Address as _, Address, Env, String as SorobanString, Vec as SorobanVec};
+    use soroban_sdk::{
+        testutils::Address as _, Address, Env, String as SorobanString, Vec as SorobanVec,
+    };
 
-    use crate::{SplitTemplateContract, SplitTemplateContractClient};
     use crate::types::{Participant, SplitType};
+    use crate::{SplitTemplateContract, SplitTemplateContractClient};
 
     fn setup() -> (Env, Address, SplitTemplateContractClient<'static>) {
         let env = Env::default();
         env.mock_all_auths();
-        
+
         let contract_id = env.register_contract(None, SplitTemplateContract);
         let client = SplitTemplateContractClient::new(&env, &contract_id);
 
@@ -45,10 +47,7 @@ mod tests {
         participants
     }
 
-    fn create_fixed_split_participants(
-        env: &Env,
-        amounts: &[i128],
-    ) -> SorobanVec<Participant> {
+    fn create_fixed_split_participants(env: &Env, amounts: &[i128]) -> SorobanVec<Participant> {
         let mut participants = SorobanVec::new(env);
         for &amount in amounts.iter() {
             participants.push_back(create_participant(env, amount));
@@ -67,12 +66,7 @@ mod tests {
         let name = SorobanString::from_str(&env, "Equal Split");
         let participants = create_equal_split_participants(&env, 3);
 
-        let template_id = client.create_template(
-            &creator,
-            &name,
-            &SplitType::Equal,
-            &participants,
-        );
+        let template_id = client.create_template(&creator, &name, &SplitType::Equal, &participants);
 
         assert!(!template_id.is_empty());
     }
@@ -85,12 +79,8 @@ mod tests {
         let percentages = [50i128, 30, 20];
         let participants = create_percentage_split_participants(&env, &percentages);
 
-        let template_id = client.create_template(
-            &creator,
-            &name,
-            &SplitType::Percentage,
-            &participants,
-        );
+        let template_id =
+            client.create_template(&creator, &name, &SplitType::Percentage, &participants);
 
         assert!(!template_id.is_empty());
     }
@@ -104,12 +94,7 @@ mod tests {
         let percentages = [50i128, 30, 15]; // Sum is 95, not 100
         let participants = create_percentage_split_participants(&env, &percentages);
 
-        let _ = client.create_template(
-            &creator,
-            &name,
-            &SplitType::Percentage,
-            &participants,
-        );
+        let _ = client.create_template(&creator, &name, &SplitType::Percentage, &participants);
     }
 
     #[test]
@@ -121,12 +106,7 @@ mod tests {
         let percentages = [50i128, 60]; // 60 exceeds 100
         let participants = create_percentage_split_participants(&env, &percentages);
 
-        let _ = client.create_template(
-            &creator,
-            &name,
-            &SplitType::Percentage,
-            &participants,
-        );
+        let _ = client.create_template(&creator, &name, &SplitType::Percentage, &participants);
     }
 
     #[test]
@@ -137,12 +117,7 @@ mod tests {
         let amounts = [100i128, 200, 300];
         let participants = create_fixed_split_participants(&env, &amounts);
 
-        let template_id = client.create_template(
-            &creator,
-            &name,
-            &SplitType::Fixed,
-            &participants,
-        );
+        let template_id = client.create_template(&creator, &name, &SplitType::Fixed, &participants);
 
         assert!(!template_id.is_empty());
     }
@@ -159,12 +134,7 @@ mod tests {
             participants.push_back(create_participant(&env, amount));
         }
 
-        let _ = client.create_template(
-            &creator,
-            &name,
-            &SplitType::Fixed,
-            &participants,
-        );
+        let _ = client.create_template(&creator, &name, &SplitType::Fixed, &participants);
     }
 
     #[test]
@@ -175,12 +145,7 @@ mod tests {
         let name = SorobanString::from_str(&env, "Empty Participants");
         let participants = SorobanVec::new(&env);
 
-        let _ = client.create_template(
-            &creator,
-            &name,
-            &SplitType::Equal,
-            &participants,
-        );
+        let _ = client.create_template(&creator, &name, &SplitType::Equal, &participants);
     }
 
     // ============================================
@@ -195,19 +160,9 @@ mod tests {
         let participants1 = create_equal_split_participants(&env, 2);
         let participants2 = create_equal_split_participants(&env, 2);
 
-        let id1 = client.create_template(
-            &creator,
-            &name,
-            &SplitType::Equal,
-            &participants1,
-        );
+        let id1 = client.create_template(&creator, &name, &SplitType::Equal, &participants1);
 
-        let id2 = client.create_template(
-            &creator,
-            &name,
-            &SplitType::Equal,
-            &participants2,
-        );
+        let id2 = client.create_template(&creator, &name, &SplitType::Equal, &participants2);
 
         // IDs should be the same when created with same inputs
         assert_eq!(id1, id2);
@@ -222,19 +177,9 @@ mod tests {
         let participants1 = create_equal_split_participants(&env, 2);
         let participants2 = create_equal_split_participants(&env, 2);
 
-        let id1 = client.create_template(
-            &creator,
-            &name1,
-            &SplitType::Equal,
-            &participants1,
-        );
+        let id1 = client.create_template(&creator, &name1, &SplitType::Equal, &participants1);
 
-        let id2 = client.create_template(
-            &creator,
-            &name2,
-            &SplitType::Equal,
-            &participants2,
-        );
+        let id2 = client.create_template(&creator, &name2, &SplitType::Equal, &participants2);
 
         // Different names should produce different IDs
         assert_ne!(id1, id2);
@@ -251,12 +196,7 @@ mod tests {
         let name = SorobanString::from_str(&env, "Retrievable Template");
         let participants = create_equal_split_participants(&env, 3);
 
-        let template_id = client.create_template(
-            &creator,
-            &name,
-            &SplitType::Equal,
-            &participants,
-        );
+        let template_id = client.create_template(&creator, &name, &SplitType::Equal, &participants);
 
         let template = client.get_template(&template_id);
         assert_eq!(template.id, template_id);
@@ -288,26 +228,11 @@ mod tests {
         let participants3 = create_fixed_split_participants(&env, &[100, 200]);
 
         // Create three templates
-        client.create_template(
-            &creator,
-            &name1,
-            &SplitType::Equal,
-            &participants1,
-        );
+        client.create_template(&creator, &name1, &SplitType::Equal, &participants1);
 
-        client.create_template(
-            &creator,
-            &name2,
-            &SplitType::Percentage,
-            &participants2,
-        );
+        client.create_template(&creator, &name2, &SplitType::Percentage, &participants2);
 
-        client.create_template(
-            &creator,
-            &name3,
-            &SplitType::Fixed,
-            &participants3,
-        );
+        client.create_template(&creator, &name3, &SplitType::Fixed, &participants3);
 
         // Retrieve all templates by creator
         let templates = client.get_templates(&creator);
@@ -341,20 +266,10 @@ mod tests {
         let participants = create_equal_split_participants(&env, 2);
 
         // Creator 1 creates a template
-        client.create_template(
-            &creator1,
-            &name1,
-            &SplitType::Equal,
-            &participants,
-        );
+        client.create_template(&creator1, &name1, &SplitType::Equal, &participants);
 
         // Creator 2 creates a template
-        client.create_template(
-            &creator2,
-            &name2,
-            &SplitType::Equal,
-            &participants,
-        );
+        client.create_template(&creator2, &name2, &SplitType::Equal, &participants);
 
         // Verify separation
         let templates1 = client.get_templates(&creator1);
@@ -377,12 +292,7 @@ mod tests {
         let name = SorobanString::from_str(&env, "Usable Template");
         let participants = create_equal_split_participants(&env, 2);
 
-        let template_id = client.create_template(
-            &creator,
-            &name,
-            &SplitType::Equal,
-            &participants,
-        );
+        let template_id = client.create_template(&creator, &name, &SplitType::Equal, &participants);
 
         let split_id = SorobanString::from_str(&env, "SPLIT_001");
         let _ = client.use_template(&template_id, &split_id);
@@ -406,12 +316,7 @@ mod tests {
         let name = SorobanString::from_str(&env, "Event Template");
         let participants = create_equal_split_participants(&env, 2);
 
-        let template_id = client.create_template(
-            &creator,
-            &name,
-            &SplitType::Equal,
-            &participants,
-        );
+        let template_id = client.create_template(&creator, &name, &SplitType::Equal, &participants);
 
         let split_id = SorobanString::from_str(&env, "SPLIT_EVENT_TEST");
 
@@ -437,12 +342,7 @@ mod tests {
         // If we call it without authorizing the creator, Soroban SDK will handle it
         // This test verifies the auth is performed
 
-        let _ = client.create_template(
-            &creator,
-            &name,
-            &SplitType::Equal,
-            &participants,
-        );
+        let _ = client.create_template(&creator, &name, &SplitType::Equal, &participants);
 
         // The test framework handles auth; this verifies the contract compiles
         // and the require_auth call is made
@@ -464,12 +364,7 @@ mod tests {
             participants.push_back(create_participant(&env, 1));
         }
 
-        let template_id = client.create_template(
-            &creator,
-            &name,
-            &SplitType::Equal,
-            &participants,
-        );
+        let template_id = client.create_template(&creator, &name, &SplitType::Equal, &participants);
 
         let template = client.get_template(&template_id);
         assert_eq!(template.participants.len(), 100);
@@ -492,12 +387,7 @@ mod tests {
             let name = SorobanString::from_str(&env, name_str);
             let participants = create_equal_split_participants(&env, 2);
 
-            client.create_template(
-                &creator,
-                &name,
-                &SplitType::Equal,
-                &participants,
-            );
+            client.create_template(&creator, &name, &SplitType::Equal, &participants);
         }
 
         // Verify all 5 are indexed

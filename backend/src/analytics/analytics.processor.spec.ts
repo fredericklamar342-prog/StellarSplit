@@ -1,18 +1,29 @@
-// Mock typeorm to avoid glob/path-scurry requiring native bindings during module load
-jest.mock("typeorm", () => {
-  const actual = jest.requireActual("typeorm");
-  return {
-    __esModule: true,
-    ...actual,
-    DataSource: jest.fn().mockImplementation(() => ({ query: jest.fn() })),
-  };
-});
+const mockDecorator = () => () => {};
 
-// Mock @nestjs/typeorm decorators so importing the processor doesn't load heavy typeorm internals
+jest.mock("@nestjs/bull", () => ({
+  Processor: mockDecorator,
+  Process: mockDecorator,
+}));
+
+jest.mock("typeorm", () => ({
+  Entity: mockDecorator,
+  PrimaryGeneratedColumn: mockDecorator,
+  Column: mockDecorator,
+  CreateDateColumn: mockDecorator,
+  UpdateDateColumn: mockDecorator,
+  Repository: class Repository {},
+}));
+
 jest.mock("@nestjs/typeorm", () => ({
-  InjectRepository: jest
-    .fn()
-    .mockImplementation(() => (target: any, key: any, index: any) => {}),
+  InjectRepository: jest.fn().mockImplementation(() => mockDecorator()),
+}));
+
+jest.mock("./analytics.service", () => ({
+  AnalyticsService: class AnalyticsService {},
+}));
+
+jest.mock("./reports.entity", () => ({
+  AnalyticsReport: class AnalyticsReport {},
 }));
 
 const { AnalyticsProcessor } = require("./analytics.processor");

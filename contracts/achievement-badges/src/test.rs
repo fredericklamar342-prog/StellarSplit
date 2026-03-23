@@ -1,10 +1,7 @@
 //! # Tests for Achievement Badges Contract
 
-use soroban_sdk::{
-    testutils::{Address as _, Ledger as _},
-    Address, Env, String, Vec,
-};
-use crate::{AchievementBadgesContract, AchievementBadgesContractClient, BadgeType, BadgeError, UserBadge};
+use crate::{AchievementBadgesContract, AchievementBadgesContractClient, BadgeType};
+use soroban_sdk::{testutils::Address as _, Address, Env, String};
 
 /// Helper to create a test environment and contract client
 fn setup_test() -> (Env, Address, AchievementBadgesContractClient<'static>) {
@@ -21,7 +18,7 @@ fn setup_test() -> (Env, Address, AchievementBadgesContractClient<'static>) {
 
 #[test]
 fn test_initialize() {
-    let (env, admin, client) = setup_test();
+    let (_env, admin, client) = setup_test();
 
     client.initialize(&admin);
 
@@ -58,7 +55,10 @@ fn test_mint_badge() {
     // Check that user now has the badge
     let user_badges = client.get_user_badges(&user);
     assert_eq!(user_badges.len(), 1);
-    assert_eq!(user_badges.get(0).unwrap().badge_type, BadgeType::FirstSplitCreator);
+    assert_eq!(
+        user_badges.get(0).unwrap().badge_type,
+        BadgeType::FirstSplitCreator
+    );
     assert_eq!(user_badges.get(0).unwrap().token_id, 1u64);
 }
 
@@ -94,10 +94,9 @@ fn test_multiple_badges_for_user() {
     assert_eq!(user_badges.len(), 3);
 
     // Check token IDs are unique
-    let token_ids: Vec<u64> = user_badges.iter().map(|b| b.token_id).collect();
-    assert_eq!(token_ids.get(0).unwrap(), 1u64);
-    assert_eq!(token_ids.get(1).unwrap(), 2u64);
-    assert_eq!(token_ids.get(2).unwrap(), 3u64);
+    assert_eq!(user_badges.get(0).unwrap().token_id, 1u64);
+    assert_eq!(user_badges.get(1).unwrap().token_id, 2u64);
+    assert_eq!(user_badges.get(2).unwrap().token_id, 3u64);
 }
 
 #[test]
@@ -109,27 +108,42 @@ fn test_badge_metadata() {
     // Test metadata for each badge type
     let metadata = client.get_badge_metadata(&BadgeType::FirstSplitCreator);
     assert_eq!(metadata.name, String::from_str(&env, "First Split Creator"));
-    assert_eq!(metadata.description, String::from_str(&env, "Awarded for creating your first split"));
+    assert_eq!(
+        metadata.description,
+        String::from_str(&env, "Awarded for creating your first split")
+    );
     assert_eq!(metadata.badge_type, BadgeType::FirstSplitCreator);
 
     let metadata = client.get_badge_metadata(&BadgeType::HundredSplitsParticipated);
     assert_eq!(metadata.name, String::from_str(&env, "Century Club"));
-    assert_eq!(metadata.description, String::from_str(&env, "Participated in 100 splits"));
+    assert_eq!(
+        metadata.description,
+        String::from_str(&env, "Participated in 100 splits")
+    );
     assert_eq!(metadata.badge_type, BadgeType::HundredSplitsParticipated);
 
     let metadata = client.get_badge_metadata(&BadgeType::BigSpender);
     assert_eq!(metadata.name, String::from_str(&env, "Big Spender"));
-    assert_eq!(metadata.description, String::from_str(&env, "Spent over 1000 XLM in splits"));
+    assert_eq!(
+        metadata.description,
+        String::from_str(&env, "Spent over 1000 XLM in splits")
+    );
     assert_eq!(metadata.badge_type, BadgeType::BigSpender);
 
     let metadata = client.get_badge_metadata(&BadgeType::FrequentSettler);
     assert_eq!(metadata.name, String::from_str(&env, "Frequent Settler"));
-    assert_eq!(metadata.description, String::from_str(&env, "Settled 50 splits as creator"));
+    assert_eq!(
+        metadata.description,
+        String::from_str(&env, "Settled 50 splits as creator")
+    );
     assert_eq!(metadata.badge_type, BadgeType::FrequentSettler);
 
     let metadata = client.get_badge_metadata(&BadgeType::GroupLeader);
     assert_eq!(metadata.name, String::from_str(&env, "Group Leader"));
-    assert_eq!(metadata.description, String::from_str(&env, "Created 10 group splits"));
+    assert_eq!(
+        metadata.description,
+        String::from_str(&env, "Created 10 group splits")
+    );
     assert_eq!(metadata.badge_type, BadgeType::GroupLeader);
 }
 

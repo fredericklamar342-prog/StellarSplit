@@ -67,7 +67,12 @@ describe('ArchivingService', () => {
   };
 
   const mockDataSource = {
-    transaction: jest.fn((cb) => cb({
+    transaction: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    // recreate transaction mock per test to avoid cross-test call counts
+    mockDataSource.transaction = jest.fn((cb) => cb({
       getRepository: (entity: any) => {
         if (entity === SplitArchive) return mockArchiveRepo;
         if (entity === Split) return mockSplitRepo;
@@ -75,10 +80,7 @@ describe('ArchivingService', () => {
         if (entity === Payment) return mockPaymentRepo;
         return null;
       }
-    })),
-  };
-
-  beforeEach(async () => {
+    }));
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ArchivingService,

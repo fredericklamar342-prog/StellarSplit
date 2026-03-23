@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, String, Address, Vec};
+use soroban_sdk::{contracttype, Address, String, Vec};
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
@@ -25,8 +25,8 @@ pub struct Dispute {
     pub raiser: Address,
     pub reason: String,
     pub status: DisputeStatus,
-    pub votes_for: u32,      // votes supporting the dispute
-    pub votes_against: u32,  // votes dismissing the dispute
+    pub votes_for: u32,     // votes supporting the dispute
+    pub votes_against: u32, // votes dismissing the dispute
     pub voters: Vec<Address>,
     pub created_at: u64,
     pub voting_ends_at: u64, // voting window: 7 days

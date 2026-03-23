@@ -1,10 +1,11 @@
 name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [main, develop]
   push:
-    branches: [develop]
+    branches: [main, develop]
 
 env:
   NODE_VERSION: "20"
@@ -35,8 +36,9 @@ jobs:
   backend-ci:
     name: Backend — Lint, Test, Build
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:15
@@ -82,7 +84,7 @@ jobs:
   frontend-ci:
     name: Frontend — Lint, Test, Build
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -106,22 +108,30 @@ jobs:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
   contracts-ci:
-    name: Contracts — Compile, Test
+    name: Contracts — Fmt, Test, Build
     needs: changes
-    if: needs.changes.outputs.contracts == 'true'
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          node-version: ${{ env.NODE_VERSION }}
-      - name: Install dependencies
+          toolchain: 1.88.0
+          components: rustfmt
+          targets: wasm32-unknown-unknown
+      - name: Check formatting
         working-directory: contracts
-        run: npm ci
-      - name: Compile contracts
-        working-directory: contracts
-        run: npm run build
+        run: bash ./scripts/ci-contracts.sh fmt
       - name: Run tests
         working-directory: contracts
-        run: npm run test
+        run: bash ./scripts/ci-contracts.sh test
+      - name: Build contracts
+        working-directory: contracts
+        run: bash ./scripts/ci-contracts.sh build
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-wasm
+          path: contracts/*/target/wasm32-unknown-unknown/release/*.wasm
+          if-no-files-found: error

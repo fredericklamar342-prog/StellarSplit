@@ -2,8 +2,8 @@
 //!
 //! This module handles all data storage operations for the badge system.
 
-use soroban_sdk::{contracttype, Address, Env, String, Symbol, symbol_short, Vec};
 use crate::types::*;
+use soroban_sdk::{contracttype, symbol_short, Address, Env, String, Symbol, Vec};
 
 /// Storage keys
 const ADMIN: Symbol = symbol_short!("ADMIN");
@@ -57,7 +57,11 @@ pub fn set_minted_badge(env: &Env, user: &Address, badge_type: &BadgeType) {
 /// Add a badge to user's collection
 pub fn add_user_badge(env: &Env, user: &Address, badge: &UserBadge) {
     let key = StorageKey::UserBadges(user.clone());
-    let mut badges: Vec<UserBadge> = env.storage().persistent().get(&key).unwrap_or(Vec::new(env));
+    let mut badges: Vec<UserBadge> = env
+        .storage()
+        .persistent()
+        .get(&key)
+        .unwrap_or(Vec::new(env));
     badges.push_back(badge.clone());
     env.storage().persistent().set(&key, &badges);
 }
@@ -65,7 +69,10 @@ pub fn add_user_badge(env: &Env, user: &Address, badge: &UserBadge) {
 /// Get all badges for a user
 pub fn get_user_badges(env: &Env, user: &Address) -> Vec<UserBadge> {
     let key = StorageKey::UserBadges(user.clone());
-    env.storage().persistent().get(&key).unwrap_or(Vec::new(env))
+    env.storage()
+        .persistent()
+        .get(&key)
+        .unwrap_or(Vec::new(env))
 }
 
 /// Get badge metadata for a badge type
@@ -92,7 +99,10 @@ pub fn get_badge_metadata(env: &Env, badge_type: &BadgeType) -> BadgeMetadata {
         BadgeType::FrequentSettler => BadgeMetadata {
             name: String::from_str(env, "Frequent Settler"),
             description: String::from_str(env, "Settled 50 splits as creator"),
-            image_url: String::from_str(env, "https://stellarsplit.com/badges/frequent-settler.png"),
+            image_url: String::from_str(
+                env,
+                "https://stellarsplit.com/badges/frequent-settler.png",
+            ),
             badge_type: badge_type.clone(),
         },
         BadgeType::GroupLeader => BadgeMetadata {

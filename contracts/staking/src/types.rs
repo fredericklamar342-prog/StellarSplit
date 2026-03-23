@@ -16,8 +16,8 @@ pub struct StakerInfo {
 pub enum DataKey {
     Admin,
     Token,
-    RewardIndex,               // Global index: total_rewards / total_staked
+    RewardIndex, // Global index: total_rewards / total_staked
     TotalStaked,
     Staker(Address),
-    DelegatedAmount(Address),  // Total amount delegated TO this address
+    DelegatedAmount(Address), // Total amount delegated TO this address
 }

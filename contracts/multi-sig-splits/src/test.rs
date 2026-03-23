@@ -1,10 +1,10 @@
 //! # Tests for Multi-Signature Splits Contract
 
+use crate::{MultisigError, MultisigSplitsContract, MultisigSplitsContractClient, MultisigStatus};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
     Address, Env, String, Vec,
 };
-use crate::{MultisigSplitsContract, MultisigSplitsContractClient, MultisigStatus, MultisigError};
 
 /// Helper to create a test environment and contract client
 fn setup_test() -> (Env, Address, MultisigSplitsContractClient<'static>) {

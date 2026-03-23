@@ -1,6 +1,8 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, symbol_short, Address, Env, String, token, IntoVal, Bytes, Val};
+use soroban_sdk::{
+    contract, contractimpl, symbol_short, token, Address, Bytes, Env, IntoVal, String, Val,
+};
 
 mod errors;
 mod events;
@@ -50,7 +52,7 @@ impl FlashLoanContract {
 
         let fee_bp = storage::get_fee_bp(&env);
         let fee = (amount * fee_bp as i128) / 10000;
-        
+
         let token_address = storage::get_token(&env);
         let token_client = token::Client::new(&env, &token_address);
         let contract_address = env.current_contract_address();
@@ -60,6 +62,16 @@ impl FlashLoanContract {
 
         // Generate a unique loan ID
         let loan_id = Self::generate_loan_id(&env, &borrower);
+        storage::set_loan(
+            &env,
+            &loan_id,
+            &Loan {
+                borrower: borrower.clone(),
+                amount,
+                fee,
+                repaid: false,
+            },
+        );
 
         // Transfer funds to borrower
         token_client.transfer(&contract_address, &borrower, &amount);
@@ -93,13 +105,9 @@ impl FlashLoanContract {
     }
 
     /// Repay a flash loan
-    pub fn repay_flash_loan(
-        env: Env,
-        loan_id: String,
-        amount: i128,
-    ) -> Result<(), Error> {
+    pub fn repay_flash_loan(env: Env, loan_id: String, amount: i128) -> Result<(), Error> {
         let mut loan = storage::get_loan(&env, &loan_id).ok_or(Error::LoanNotFound)?;
-        
+
         if loan.repaid {
             return Err(Error::LoanAlreadyRepaid);
         }

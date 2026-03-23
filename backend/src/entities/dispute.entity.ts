@@ -12,6 +12,11 @@ import {
 } from 'typeorm';
 import { Split } from './split.entity';
 
+const jsonColumnType = process.env.NODE_ENV === 'test' ? 'simple-json' : 'jsonb';
+const timestampColumnType = process.env.NODE_ENV === 'test' ? 'datetime' : 'timestamp';
+const enumColumnType = process.env.NODE_ENV === 'test' ? 'simple-enum' : 'enum';
+const jsonArrayDefault = process.env.NODE_ENV === 'test' ? '[]' : [];
+
 export enum DisputeType {
   INCORRECT_AMOUNT = 'incorrect_amount',
   MISSING_PAYMENT = 'missing_payment',
@@ -52,7 +57,7 @@ export class Dispute {
   raisedBy!: string; // Wallet address of dispute creator
 
   @Column({
-    type: 'enum',
+    type: enumColumnType,
     enum: DisputeType,
   })
   disputeType!: DisputeType;
@@ -63,7 +68,7 @@ export class Dispute {
   description!: string;
 
   @Column({
-    type: 'enum',
+    type: enumColumnType,
     enum: DisputeStatus,
     default: DisputeStatus.OPEN,
   })
@@ -71,9 +76,9 @@ export class Dispute {
 
   // Evidence metadata stored as JSONB
   @Column({
-    type: 'jsonb',
+    type: jsonColumnType,
     nullable: true,
-    default: () => "'[]'::jsonb",
+    default: jsonArrayDefault,
   })
   evidence!: Array<{
     id: string;
@@ -99,14 +104,14 @@ export class Dispute {
   resolvedBy: string | null = null; // Wallet address or admin ID
 
   @Column({
-    type: 'timestamp',
+    type: timestampColumnType,
     nullable: true,
   })
   resolvedAt: Date | null = null;
 
   // Financial outcome details
   @Column({
-    type: 'jsonb',
+    type: jsonColumnType,
     nullable: true,
   })
   resolutionOutcome: {
@@ -130,16 +135,16 @@ export class Dispute {
   appealReason: string | null = null;
 
   @Column({
-    type: 'timestamp',
+    type: timestampColumnType,
     nullable: true,
   })
   appealedAt: Date | null = null;
 
   // Audit trail
   @Column({
-    type: 'jsonb',
+    type: jsonColumnType,
     nullable: true,
-    default: () => "'[]'::jsonb",
+    default: jsonArrayDefault,
   })
   auditTrail!: Array<{
     action: string;

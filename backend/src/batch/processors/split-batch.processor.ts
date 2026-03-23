@@ -17,6 +17,8 @@ interface SplitPayload {
   creatorWalletAddress?: string;
 }
 
+type ProcessorError = Error & { code?: string };
+
 @Processor("batch_splits")
 export class SplitBatchProcessor {
   private readonly logger = new Logger(SplitBatchProcessor.name);
@@ -93,36 +95,20 @@ export class SplitBatchProcessor {
     concurrency: number,
   ): Promise<void> {
     const queue = [...operations];
-    const executing: Promise<void>[] = [];
+    const workerCount = Math.max(1, concurrency || 1);
 
-    while (queue.length > 0 || executing.length > 0) {
-      // Start new operations up to concurrency limit
-      while (executing.length < concurrency && queue.length > 0) {
-        const operation = queue.shift()!;
-        executing.push(this.processOperation(operation));
-      }
-
-      // Wait for at least one operation to complete
-      if (executing.length > 0) {
-        await Promise.race(executing);
-        
-        // Remove completed promises
-        for (let i = executing.length - 1; i >= 0; i--) {
-          const promise = executing[i];
-          // Check if promise is settled
-          const result = await Promise.race([
-            promise.then(() => ({ done: true })),
-            Promise.resolve({ done: false }),
-          ]);
-          if (result.done) {
-            executing.splice(i, 1);
-          }
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (queue.length > 0) {
+        const operation = queue.shift();
+        if (!operation) {
+          return;
         }
-      }
-    }
 
-    // Wait for all remaining operations
-    await Promise.all(executing);
+        await this.processOperation(operation);
+      }
+    });
+
+    await Promise.all(workers);
   }
 
   /**
@@ -161,11 +147,11 @@ export class SplitBatchProcessor {
    */
   private validatePayload(payload: SplitPayload): void {
     if (!payload.totalAmount || payload.totalAmount <= 0) {
-      throw new Error("Invalid total amount");
+      throw this.createValidationError("Invalid total amount");
     }
 
     if (!payload.participants || payload.participants.length === 0) {
-      throw new Error("No participants provided");
+      throw this.createValidationError("No participants provided");
     }
 
     const totalParticipantAmount = payload.participants.reduce(
@@ -174,7 +160,9 @@ export class SplitBatchProcessor {
     );
 
     if (Math.abs(totalParticipantAmount - payload.totalAmount) > 0.01) {
-      throw new Error("Participant amounts do not sum to total amount");
+      throw this.createValidationError(
+        "Participant amounts do not sum to total amount",
+      );
     }
   }
 
@@ -190,5 +178,11 @@ export class SplitBatchProcessor {
       participantCount: payload.participants.length,
       createdAt: new Date().toISOString(),
     };
+  }
+
+  private createValidationError(message: string): ProcessorError {
+    const error = new Error(message) as ProcessorError;
+    error.code = "VALIDATION_ERROR";
+    return error;
   }
 }

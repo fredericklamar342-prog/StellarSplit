@@ -9,6 +9,8 @@ import {
 } from 'typeorm';
 import { Dispute } from './dispute.entity';
 
+const jsonColumnType = process.env.NODE_ENV === 'test' ? 'simple-json' : 'jsonb';
+
 @Entity('dispute_evidence')
 @Index(['disputeId'])
 @Index(['uploadedBy'])
@@ -58,7 +60,7 @@ export class DisputeEvidence {
   description: string | null = null; // Optional description from uploader
 
   @Column({
-    type: 'jsonb',
+    type: jsonColumnType,
     nullable: true,
   })
   metadata: {

@@ -5,9 +5,7 @@
 
 #![no_std]
 
-use soroban_sdk::{
-    contract, contractimpl, Address, Env, String, Vec, panic_with_error,
-};
+use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, String, Vec};
 
 mod events;
 mod storage;
@@ -92,11 +90,7 @@ impl MultisigSplitsContract {
     ///
     /// This function allows authorized signers to add their signature
     /// to a pending multi-sig split.
-    pub fn sign_split(
-        env: Env,
-        split_id: String,
-        signer: Address,
-    ) -> Result<bool, MultisigError> {
+    pub fn sign_split(env: Env, split_id: String, signer: Address) -> Result<bool, MultisigError> {
         // Verify the signer is authorizing this call
         signer.require_auth();
 
@@ -139,10 +133,7 @@ impl MultisigSplitsContract {
     ///
     /// This function executes a split once all required signatures are collected
     /// and the time lock has expired.
-    pub fn execute_split(
-        env: Env,
-        split_id: String,
-    ) -> Result<(), MultisigError> {
+    pub fn execute_split(env: Env, split_id: String) -> Result<(), MultisigError> {
         // Check if split exists
         if !storage::split_exists(&env, &split_id) {
             return Err(MultisigError::SplitNotFound);
@@ -177,11 +168,7 @@ impl MultisigSplitsContract {
     /// Cancel a multi-signature split
     ///
     /// This function allows the admin to cancel a split in emergency situations.
-    pub fn cancel_split(
-        env: Env,
-        split_id: String,
-        reason: String,
-    ) -> Result<(), MultisigError> {
+    pub fn cancel_split(env: Env, split_id: String, reason: String) -> Result<(), MultisigError> {
         // Get the admin
         let admin = storage::get_admin(&env);
 
@@ -213,10 +200,7 @@ impl MultisigSplitsContract {
     ///
     /// This function allows the admin to execute a split immediately
     /// in emergency situations, bypassing time locks and signature requirements.
-    pub fn emergency_override(
-        env: Env,
-        split_id: String,
-    ) -> Result<(), MultisigError> {
+    pub fn emergency_override(env: Env, split_id: String) -> Result<(), MultisigError> {
         // Get the admin
         let admin = storage::get_admin(&env);
 
@@ -245,18 +229,12 @@ impl MultisigSplitsContract {
     }
 
     /// Get split information
-    pub fn get_split_info(
-        env: Env,
-        split_id: String,
-    ) -> MultisigSplit {
+    pub fn get_split_info(env: Env, split_id: String) -> MultisigSplit {
         storage::get_split(&env, &split_id)
     }
 
     /// Check if a split can be executed
-    pub fn can_execute_split(
-        env: Env,
-        split_id: String,
-    ) -> bool {
+    pub fn can_execute_split(env: Env, split_id: String) -> bool {
         if !storage::split_exists(&env, &split_id) {
             return false;
         }

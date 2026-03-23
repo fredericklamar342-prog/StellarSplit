@@ -5,9 +5,7 @@
 
 #![no_std]
 
-use soroban_sdk::{
-    contract, contractimpl, Address, Env, Vec, panic_with_error,
-};
+use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Vec};
 
 mod events;
 mod storage;
@@ -48,34 +46,30 @@ impl AchievementBadgesContract {
     /// This function checks the eligibility criteria for each badge type.
     /// In a real implementation, this would integrate with the main split contract
     /// to verify user achievements.
-    pub fn check_badge_eligibility(
-        env: Env,
-        user: Address,
-        badge_type: BadgeType,
-    ) -> bool {
+    pub fn check_badge_eligibility(env: Env, user: Address, badge_type: BadgeType) -> bool {
         // For now, we'll implement mock eligibility checks
         // In production, this would query the main split contract
         match badge_type {
             BadgeType::FirstSplitCreator => {
                 // Mock: Assume user is eligible if they haven't minted this badge
                 !storage::has_minted_badge(&env, &user, &badge_type)
-            },
+            }
             BadgeType::HundredSplitsParticipated => {
                 // Mock: Assume user is eligible if they haven't minted this badge
                 !storage::has_minted_badge(&env, &user, &badge_type)
-            },
+            }
             BadgeType::BigSpender => {
                 // Mock: Assume user is eligible if they haven't minted this badge
                 !storage::has_minted_badge(&env, &user, &badge_type)
-            },
+            }
             BadgeType::FrequentSettler => {
                 // Mock: Assume user is eligible if they haven't minted this badge
                 !storage::has_minted_badge(&env, &user, &badge_type)
-            },
+            }
             BadgeType::GroupLeader => {
                 // Mock: Assume user is eligible if they haven't minted this badge
                 !storage::has_minted_badge(&env, &user, &badge_type)
-            },
+            }
         }
     }
 
@@ -83,11 +77,7 @@ impl AchievementBadgesContract {
     ///
     /// This function mints a new badge NFT if the user is eligible and hasn't
     /// already minted that badge type.
-    pub fn mint_badge(
-        env: Env,
-        user: Address,
-        badge_type: BadgeType,
-    ) -> Result<u64, BadgeError> {
+    pub fn mint_badge(env: Env, user: Address, badge_type: BadgeType) -> Result<u64, BadgeError> {
         // Verify the user is authorizing this call
         user.require_auth();
 
@@ -122,18 +112,12 @@ impl AchievementBadgesContract {
     }
 
     /// Get all badges owned by a user
-    pub fn get_user_badges(
-        env: Env,
-        user: Address,
-    ) -> Vec<UserBadge> {
+    pub fn get_user_badges(env: Env, user: Address) -> Vec<UserBadge> {
         storage::get_user_badges(&env, &user)
     }
 
     /// Get metadata for a badge type
-    pub fn get_badge_metadata(
-        env: Env,
-        badge_type: BadgeType,
-    ) -> BadgeMetadata {
+    pub fn get_badge_metadata(env: Env, badge_type: BadgeType) -> BadgeMetadata {
         storage::get_badge_metadata(&env, &badge_type)
     }
 }

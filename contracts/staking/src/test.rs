@@ -1,8 +1,11 @@
 #![cfg(test)]
 
 use crate::{StakingContract, StakingContractClient};
-use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env};
 use soroban_sdk::token::{Client as TokenClient, StellarAssetClient as TokenAdminClient};
+use soroban_sdk::{
+    testutils::{Address as _, Ledger},
+    Address, Env,
+};
 
 #[test]
 fn test_staking_success() {
@@ -11,7 +14,7 @@ fn test_staking_success() {
 
     let admin = Address::generate(&env);
     let staker = Address::generate(&env);
-    
+
     // Deploy token
     let token_admin = Address::generate(&env);
     let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
@@ -26,7 +29,7 @@ fn test_staking_success() {
 
     // Mint tokens
     token_admin_client.mint(&staker, &1000);
-    
+
     // Stake
     staking_client.stake(&staker, &500);
     assert_eq!(token_client.balance(&staker), 500);
@@ -36,7 +39,7 @@ fn test_staking_success() {
     // Unstake
     staking_client.unstake(&staker, &200);
     assert_eq!(staking_client.get_voting_power(&staker), 300);
-    
+
     // Try withdraw (should fail - cooldown)
     let result = staking_client.try_withdraw(&staker);
     assert!(result.is_err());
@@ -55,7 +58,7 @@ fn test_staking_rewards() {
     let admin = Address::generate(&env);
     let staker1 = Address::generate(&env);
     let staker2 = Address::generate(&env);
-    
+
     // Deploy token
     let token_admin = Address::generate(&env);
     let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
@@ -93,7 +96,7 @@ fn test_delegation() {
     let admin = Address::generate(&env);
     let staker1 = Address::generate(&env);
     let staker2 = Address::generate(&env);
-    
+
     // Deploy token
     let token_admin = Address::generate(&env);
     let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
@@ -117,11 +120,11 @@ fn test_delegation() {
     // Delegate staker1 -> staker2
     staking_client.delegate_voting_power(&staker1, &Some(staker2.clone()));
 
-    assert_eq!(staking_client.get_voting_power(&staker1), 600); // Still has own voting power? 
-    // Wait, usually delegation means giving power to someone else.
-    // The requirement says "Delegate voting power". 
-    // My implementation: get_voting_power = staked + delegated_to_me.
-    // So staker2 should have 400 + 600 = 1000.
+    assert_eq!(staking_client.get_voting_power(&staker1), 600); // Still has own voting power?
+                                                                // Wait, usually delegation means giving power to someone else.
+                                                                // The requirement says "Delegate voting power".
+                                                                // My implementation: get_voting_power = staked + delegated_to_me.
+                                                                // So staker2 should have 400 + 600 = 1000.
     assert_eq!(staking_client.get_voting_power(&staker2), 1000);
 
     // Unstake staker1 partial

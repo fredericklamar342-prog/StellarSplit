@@ -12,6 +12,8 @@ import { Participant } from "./participant.entity";
 import { ManyToOne, JoinColumn } from "typeorm";
 import { ExpenseCategory } from "../compliance/entities/expense-category.entity";
 
+const timestampColumnType = process.env.NODE_ENV === 'test' ? 'datetime' : 'timestamp';
+
 @Entity("splits")
 export class Split {
   @PrimaryGeneratedColumn("uuid")
@@ -49,7 +51,7 @@ export class Split {
   @Column({ type: "varchar", length: 56, nullable: true })
   creatorWalletAddress?: string;
 
-  @Column({ type: "timestamp", nullable: true })
+  @Column({ type: timestampColumnType, nullable: true })
   dueDate?: Date;
 
   @CreateDateColumn()
@@ -71,7 +73,7 @@ export class Split {
   @Column({ type: "uuid", nullable: true })
   categoryId?: string;
 
-  @Column({ type: "timestamp", nullable: true })
+  @Column({ type: timestampColumnType, nullable: true })
   expiryDate?: Date;
 
   @ManyToOne(() => ExpenseCategory, (category) => category.splits)

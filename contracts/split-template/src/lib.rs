@@ -96,14 +96,9 @@ impl SplitTemplateContract {
     ///
     /// # Returns
     /// Success or error if template not found
-    pub fn use_template(
-        env: Env,
-        template_id: String,
-        split_id: String,
-    ) -> Result<(), Error> {
+    pub fn use_template(env: Env, template_id: String, split_id: String) -> Result<(), Error> {
         // Load the template; fail if not found
-        storage::get_template(&env, &template_id)
-            .ok_or(Error::TemplateNotFound)?;
+        storage::get_template(&env, &template_id).ok_or(Error::TemplateNotFound)?;
 
         // Emit event linking template to split
         events::emit_template_used(&env, template_id, split_id);
@@ -146,8 +141,7 @@ impl SplitTemplateContract {
     /// # Returns
     /// The template if found, or an error
     pub fn get_template(env: Env, template_id: String) -> Result<Template, Error> {
-        storage::get_template(&env, &template_id)
-            .ok_or(Error::TemplateNotFound)
+        storage::get_template(&env, &template_id).ok_or(Error::TemplateNotFound)
     }
 
     // ============================================

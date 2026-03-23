@@ -73,14 +73,20 @@ describe("SplitBatchProcessor", () => {
           id: "op-1",
           payload: {
             totalAmount: 100,
-            participants: [{ userId: "user1", amount: 50 }],
+            participants: [
+              { userId: "user1", amount: 50 },
+              { userId: "user2", amount: 50 },
+            ],
           },
         },
         {
           id: "op-2",
           payload: {
             totalAmount: 200,
-            participants: [{ userId: "user2", amount: 100 }],
+            participants: [
+              { userId: "user2", amount: 100 },
+              { userId: "user3", amount: 100 },
+            ],
           },
         },
       ];
@@ -92,7 +98,10 @@ describe("SplitBatchProcessor", () => {
       await processor.handleSplitBatch(mockJob);
 
       expect(batchOperationRepository.find).toHaveBeenCalledWith({
-        where: { batch_id: "batch-1" },
+        where: {
+          batch_id: "batch-1",
+          status: BatchOperationStatus.PENDING,
+        },
         order: { operation_index: "ASC" },
       });
       expect(mockJob.progress).toHaveBeenCalled();
@@ -117,13 +126,16 @@ describe("SplitBatchProcessor", () => {
     });
   });
 
-  describe("processSingleSplit", () => {
+  describe("processOperation", () => {
     it("should process single split successfully", async () => {
       const operation = {
         id: "op-1",
         payload: {
           totalAmount: 100,
-          participants: [{ userId: "user1", amount: 50 }],
+          participants: [
+            { userId: "user1", amount: 50 },
+            { userId: "user2", amount: 50 },
+          ],
           description: "Test split",
         },
       };
@@ -132,7 +144,7 @@ describe("SplitBatchProcessor", () => {
       (batchProgressService.markOperationCompleted as jest.Mock).mockResolvedValue(undefined);
 
       // We need to access the private method through any cast for testing
-      await (processor as any).processSingleSplit(operation);
+      await (processor as any).processOperation(operation);
 
       expect(batchProgressService.markOperationStarted).toHaveBeenCalledWith("op-1");
       expect(batchProgressService.markOperationCompleted).toHaveBeenCalledWith("op-1", expect.any(Object));
@@ -150,7 +162,7 @@ describe("SplitBatchProcessor", () => {
       (batchProgressService.markOperationStarted as jest.Mock).mockResolvedValue(undefined);
       (batchProgressService.markOperationFailed as jest.Mock).mockResolvedValue(undefined);
 
-      await (processor as any).processSingleSplit(operation);
+      await (processor as any).processOperation(operation);
 
       expect(batchProgressService.markOperationFailed).toHaveBeenCalledWith(
         "op-1",
