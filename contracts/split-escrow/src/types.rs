@@ -23,4 +23,6 @@ pub struct Split {
     pub max_participants: u32,
     /// Distinct addresses that have deposited; length is the current participant count.
     pub participants: Vec<Address>,
+    /// Short on-chain context (max 128 bytes at creation/update); empty if unset.
+    pub note: String,
 }
