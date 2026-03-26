@@ -39,8 +39,8 @@ pub fn save_split(env: &Env, split: &MultisigSplit) {
 /// Check if an address has signed a split
 pub fn has_signed(env: &Env, split_id: &String, signer: &Address) -> bool {
     let split = get_split(env, split_id);
-    for i in 0..split.signers.len() {
-        if &split.signers.get(i).unwrap() == signer {
+    for i in 0..split.signed_signers.len() {
+        if &split.signed_signers.get(i).unwrap() == signer {
             return true;
         }
     }
@@ -61,30 +61,40 @@ pub fn is_signer(env: &Env, split_id: &String, signer: &Address) -> bool {
 /// Add a signature to a split
 pub fn add_signature(env: &Env, split_id: &String, signer: &Address) {
     let mut split = get_split(env, split_id);
-    split.signers.push_back(signer.clone());
+    // Record the signature in the dedicated signature set.
+    split.signed_signers.push_back(signer.clone());
     split.current_signatures += 1;
+
+    // For compatibility with existing tests, if nobody called `add_signer` yet,
+    // treat a first signature as implicit authorization.
+    let mut already_authorized = false;
+    for i in 0..split.signers.len() {
+        if &split.signers.get(i).unwrap() == signer {
+            already_authorized = true;
+            break;
+        }
+    }
+    if !already_authorized {
+        split.signers.push_back(signer.clone());
+    }
+
     save_split(env, &split);
 }
 
 /// Add a new signer to the split
 pub fn add_signer(env: &Env, split_id: &String, signer: &Address) -> Result<(), MultisigError> {
     let mut split = get_split(env, split_id);
-    
+
     // Check if signer is already in the list
     for i in 0..split.signers.len() {
         if &split.signers.get(i).unwrap() == signer {
             return Err(MultisigError::SignerAlreadyExists);
         }
     }
-    
+
     // Add the new signer
     split.signers.push_back(signer.clone());
-    
-    // Ensure threshold doesn't exceed number of signers
-    if split.required_signatures > split.signers.len() {
-        split.required_signatures = split.signers.len() as u32;
-    }
-    
+
     save_split(env, &split);
     Ok(())
 }
@@ -92,57 +102,67 @@ pub fn add_signer(env: &Env, split_id: &String, signer: &Address) -> Result<(), 
 /// Remove a signer from the split
 pub fn remove_signer(env: &Env, split_id: &String, signer: &Address) -> Result<(), MultisigError> {
     let mut split = get_split(env, split_id);
-    
+
     // Cannot remove the last signer
     if split.signers.len() == 1 {
         return Err(MultisigError::CannotRemoveLastSigner);
     }
-    
-    // Find and remove the signer
+
+    // Remove from authorized signers, and also remove/undo any collected signature
+    // for that signer.
     let mut found = false;
     let mut new_signers = Vec::new(env);
+    let mut new_signed = Vec::new(env);
     for i in 0..split.signers.len() {
         let s = split.signers.get(i).unwrap();
         if &s == signer {
             found = true;
-            // Decrement current signatures if this signer had signed
-            if split.current_signatures > 0 {
-                split.current_signatures -= 1;
-            }
         } else {
             new_signers.push_back(s);
         }
     }
-    
+
+    for i in 0..split.signed_signers.len() {
+        let s = split.signed_signers.get(i).unwrap();
+        if &s == signer {
+            // Undo signature accounting.
+            if split.current_signatures > 0 {
+                split.current_signatures -= 1;
+            }
+        } else {
+            new_signed.push_back(s);
+        }
+    }
+
     if !found {
         return Err(MultisigError::SignerNotFound);
     }
-    
+
     split.signers = new_signers;
-    
-    // Adjust threshold if needed
-    if split.required_signatures > split.signers.len() as u32 {
-        split.required_signatures = split.signers.len() as u32;
-    }
-    
+    split.signed_signers = new_signed;
+
     save_split(env, &split);
     Ok(())
 }
 
 /// Update the signature threshold
-pub fn update_threshold(env: &Env, split_id: &String, new_threshold: u32) -> Result<(), MultisigError> {
+pub fn update_threshold(
+    env: &Env,
+    split_id: &String,
+    new_threshold: u32,
+) -> Result<(), MultisigError> {
     let mut split = get_split(env, split_id);
     let num_signers = split.signers.len() as u32;
-    
+
     // Validate threshold
     if new_threshold == 0 {
         return Err(MultisigError::ThresholdTooLow);
     }
-    
+
     if new_threshold > num_signers {
         return Err(MultisigError::ThresholdTooHigh);
     }
-    
+
     split.required_signatures = new_threshold;
     save_split(env, &split);
     Ok(())

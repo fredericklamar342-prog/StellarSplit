@@ -1,18 +1,10 @@
 #![cfg(test)]
+extern crate std;
 
 use crate::{SplitEscrowContract, SplitEscrowContractClient, SplitStatus};
 use soroban_sdk::token::{Client as TokenClient, StellarAssetClient as TokenAdminClient};
-use soroban_sdk::{
-    testutils::Address as _, testutils::Events as _, Address, Env, Map, String,
-};
-
-fn metadata_map(env: &Env, entries: &[(&str, &str)]) -> Map<String, String> {
-    let mut metadata = Map::new(env);
-    for (key, value) in entries {
-        metadata.set(String::from_str(env, key), String::from_str(env, value));
-    }
-    metadata
-}
+use soroban_sdk::IntoVal;
+use soroban_sdk::{testutils::Address as _, testutils::Events as _, Address, Env, String};
 
 fn setup() -> (
     Env,
@@ -147,25 +139,26 @@ fn test_version_stored_on_init() {
 
 #[test]
 fn test_upgrade_version_admin() {
-    let (env, client, admin, _, _, _, _) = setup();
+    let (env, client, _admin, _, _, _, _) = setup();
 
     client.upgrade_version(&String::from_str(&env, "1.1.0"));
     assert_eq!(client.get_version(), String::from_str(&env, "1.1.0"));
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #3)")] // Unauthorized
+#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")] // Missing admin auth
 fn test_upgrade_version_non_admin_fails() {
     let (env, client, _, creator, _, _, _) = setup();
 
-    env.mock_all_auths_providing_64bit_allowance(); // Reset mocks to require specific auth
+    // Disable blanket auth mocking so we can assert on authorization failures.
+    env.set_auths(&[]);
 
     // Switch to creator auth
     client.env.mock_auths(&[soroban_sdk::testutils::MockAuth {
         address: &creator,
         invoke: &soroban_sdk::testutils::MockAuthInvoke {
             contract: &client.address,
-            function: "upgrade_version",
+            fn_name: "upgrade_version",
             args: (String::from_str(&env, "1.1.0"),).into_val(&env),
             sub_invokes: &[],
         },
@@ -362,4 +355,193 @@ fn test_note_updated_emits_event() {
     let before = env.events().all().len();
     client.set_note(&split_id, &String::from_str(&env, "hello"));
     assert!(env.events().all().len() > before);
+}
+
+// ============================================================
+// Property / invariant tests (proptest-style)
+// ============================================================
+
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    const MAX_PARTICIPANTS_IN_TEST: usize = 4;
+
+    #[derive(Clone)]
+    struct Model {
+        status: SplitStatus,
+        total_amount: i128,
+        deposited_amount: i128,
+        max_participants: u32,
+        used_participants: [bool; MAX_PARTICIPANTS_IN_TEST],
+        fee_bps: u32,
+    }
+
+    fn used_count(m: &Model) -> u32 {
+        let mut c = 0u32;
+        for i in 0..MAX_PARTICIPANTS_IN_TEST {
+            if m.used_participants[i] {
+                c += 1;
+            }
+        }
+        c
+    }
+
+    fn calculate_fee(total: i128, fee_bps: u32) -> i128 {
+        (total * fee_bps as i128) / 10_000i128
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 32, .. ProptestConfig::default() })]
+        #[test]
+        fn prop_escrow_invariants_deposit_and_release_sequences(
+            total_amount in 1_000i128..=10_000i128,
+            cap in 1u32..=3u32,
+            fee_bps in 0u32..=500u32,
+            steps in prop::collection::vec(
+                (
+                    0u8..=1u8, // 0 deposit, 1 release
+                    0u8..=3u8, // participant index
+                    1u32..=5_000u32, // amount
+                ),
+                1usize..=20
+            ),
+        ) {
+            let env = Env::default();
+            env.mock_all_auths();
+
+            let admin = Address::generate(&env);
+            let creator = Address::generate(&env);
+            let treasury = Address::generate(&env);
+
+            // Deploy token
+            let token_admin = Address::generate(&env);
+            let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+            let token_addr = token_contract.address();
+            let token_client = TokenClient::new(&env, &token_addr);
+            let token_admin_client = TokenAdminClient::new(&env, &token_addr);
+
+            // Deploy escrow contract
+            let contract_id = env.register_contract(None, SplitEscrowContract);
+            let client = SplitEscrowContractClient::new(&env, &contract_id);
+            client.initialize(&admin, &token_addr, &String::from_str(&env, "1.0.0"));
+
+            client.set_treasury(&treasury);
+            client.set_fee(&fee_bps);
+
+            // Create split
+            let split_id = client.create_escrow(
+                &creator,
+                &String::from_str(&env, "prop-escrow"),
+                &total_amount,
+                &Some(cap),
+                &None,
+            );
+
+            // Seed participants and track their balances.
+            let mut participants: std::vec::Vec<Address> = std::vec::Vec::new();
+            for _ in 0..MAX_PARTICIPANTS_IN_TEST {
+                participants.push(Address::generate(&env));
+            }
+
+            // Mint enough tokens to cover up to several deposits.
+            let mint_amount = total_amount * 5;
+            for p in &participants {
+                token_admin_client.mint(p, &mint_amount);
+            }
+
+            let initial_total_supply = {
+                let mut t = token_client.balance(&creator);
+                t += token_client.balance(&treasury);
+                t += token_client.balance(&contract_id);
+                for p in &participants {
+                    t += token_client.balance(p);
+                }
+                t
+            };
+
+            let mut model = Model {
+                status: SplitStatus::Pending,
+                total_amount,
+                deposited_amount: 0,
+                max_participants: cap,
+                used_participants: [false; MAX_PARTICIPANTS_IN_TEST],
+                fee_bps,
+            };
+
+            for (action, p_idx_raw, amount_raw) in steps {
+                let p_idx = p_idx_raw as usize;
+                let amount = amount_raw as i128;
+
+                if action == 0 {
+                    // Deposit attempt
+                    let participant = participants[p_idx].clone();
+                    let res = client.try_deposit(&split_id, &participant, &amount);
+                    if res.is_ok() {
+                        // Invariant: escrow must have been Pending and amount must fit.
+                        prop_assert_eq!(model.status.clone(), SplitStatus::Pending);
+                        prop_assert!(model.deposited_amount + amount <= model.total_amount);
+                        if !model.used_participants[p_idx] {
+                            prop_assert!(used_count(&model) < model.max_participants);
+                            model.used_participants[p_idx] = true;
+                        }
+                        model.deposited_amount += amount;
+                        if model.deposited_amount == model.total_amount {
+                            model.status = SplitStatus::Ready;
+                        }
+                    }
+                } else {
+                    // Release attempt
+                    let res = client.try_release_funds(&split_id);
+                    if res.is_ok() {
+                        prop_assert_eq!(model.status.clone(), SplitStatus::Ready);
+                        model.status = SplitStatus::Released;
+                    } else {
+                        // If release fails, state must not change.
+                        prop_assert!(model.status.clone() != SplitStatus::Ready);
+                    }
+                }
+
+                // Fetch escrow on-chain state and validate invariants.
+                let escrow = client.get_escrow(&split_id);
+                prop_assert_eq!(escrow.status, model.status.clone());
+                prop_assert_eq!(escrow.total_amount, model.total_amount);
+                prop_assert_eq!(escrow.deposited_amount, model.deposited_amount);
+                prop_assert_eq!(escrow.max_participants, model.max_participants);
+                prop_assert_eq!(escrow.participants.len(), used_count(&model));
+                prop_assert!(escrow.deposited_amount <= escrow.total_amount);
+
+                // Money invariants:
+                let current_total_supply = {
+                    let mut t = token_client.balance(&creator);
+                    t += token_client.balance(&treasury);
+                    t += token_client.balance(&contract_id);
+                    for p in &participants {
+                        t += token_client.balance(p);
+                    }
+                    t
+                };
+                prop_assert_eq!(current_total_supply, initial_total_supply);
+
+                let contract_balance = token_client.balance(&contract_id);
+                match model.status.clone() {
+                    SplitStatus::Pending => {
+                        prop_assert_eq!(contract_balance, model.deposited_amount);
+                    }
+                    SplitStatus::Ready => {
+                        prop_assert_eq!(contract_balance, model.total_amount);
+                    }
+                    SplitStatus::Released => {
+                        // All funds have been distributed.
+                        prop_assert_eq!(contract_balance, 0);
+
+                        let fee_amount = calculate_fee(model.total_amount, model.fee_bps);
+                        let creator_amount = model.total_amount - fee_amount;
+                        prop_assert_eq!(token_client.balance(&treasury), fee_amount);
+                        prop_assert_eq!(token_client.balance(&creator), creator_amount);
+                    }
+                }
+            }
+        }
+    }
 }

@@ -9,20 +9,35 @@ mod test;
 
 use errors::Error;
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, String};
-use types::{DataKey, Dispute, DisputeResult, DisputeStatus};
+use types::{Dispute, DisputeResult, DisputeStatus};
 
 const VOTING_PERIOD: u64 = 604_800; // 7 days in seconds
 
+const MAX_SPLIT_ID_BYTES: usize = 64;
+
 fn generate_dispute_id(env: &Env, split_id: &String) -> String {
+    let split_len = split_id.len() as usize;
+    // Dispute IDs include split_id bytes; keep it bounded to avoid
+    // allocating unbounded buffers in `no_std`.
+    assert!(split_len <= MAX_SPLIT_ID_BYTES);
+
+    // Convert Soroban `String` into a `Bytes` blob for hashing.
+    let mut split_buf = [0u8; MAX_SPLIT_ID_BYTES];
+    split_id.copy_into_slice(&mut split_buf[..split_len]);
+    let split_bytes = Bytes::from_slice(env, &split_buf[..split_len]);
+
     let mut input = Bytes::new(env);
-    input.append(&split_id.to_bytes());
+    input.append(&split_bytes);
     let seq = env.ledger().sequence().to_be_bytes();
     input.append(&Bytes::from_slice(env, &seq));
     let hash = env.crypto().sha256(&input);
     let hash_bytes = &hash.to_array()[..8];
-    let mut id_bytes = String::from_str(env, "dis_").to_bytes();
+    let mut id_bytes = Bytes::from_slice(env, b"dis_");
     id_bytes.append(&Bytes::from_slice(env, hash_bytes));
-    String::from_bytes(env, &id_bytes)
+
+    // `String::from_bytes` expects a byte slice; convert via a fixed buffer.
+    let id_buf = id_bytes.to_buffer::<32>();
+    String::from_bytes(env, id_buf.as_slice())
 }
 
 #[contract]
@@ -133,7 +148,11 @@ impl DisputeContract {
         };
 
         dispute.status = DisputeStatus::Resolved;
-        dispute.result = Some(result.clone());
+        dispute.result = Some(match result {
+            DisputeResult::UpheldForRaiser => 0u32,
+            DisputeResult::DismissedForRaiser => 1u32,
+            DisputeResult::Tied => 2u32,
+        });
 
         storage::save_dispute(&env, &dispute);
 

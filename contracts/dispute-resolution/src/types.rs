@@ -1,7 +1,7 @@
 use soroban_sdk::{contracttype, Address, String, Vec};
 
 #[contracttype]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DisputeStatus {
     Open,
     Voting,
@@ -10,7 +10,7 @@ pub enum DisputeStatus {
 }
 
 #[contracttype]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DisputeResult {
     UpheldForRaiser,    // Dispute was valid, raiser wins
     DismissedForRaiser, // Dispute was invalid, original split stands
@@ -30,7 +30,9 @@ pub struct Dispute {
     pub voters: Vec<Address>,
     pub created_at: u64,
     pub voting_ends_at: u64, // voting window: 7 days
-    pub result: Option<DisputeResult>,
+    // Store the resolved outcome as a small integer to avoid SDK enum/Option
+    // serialization constraints across Soroban versions.
+    pub result: Option<u32>,
 }
 
 #[contracttype]

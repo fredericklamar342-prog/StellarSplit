@@ -75,6 +75,7 @@ impl MultisigSplitsContract {
             executed_at: 0,
             status: MultisigStatus::Pending,
             signers: Vec::new(&env),
+            signed_signers: Vec::new(&env),
         };
 
         // Save the split
@@ -384,10 +385,7 @@ impl MultisigSplitsContract {
     }
 
     /// Get governance information for a split
-    pub fn get_governance_info(
-        env: Env,
-        split_id: String,
-    ) -> GovernanceInfo {
+    pub fn get_governance_info(env: Env, split_id: String) -> GovernanceInfo {
         if !storage::split_exists(&env, &split_id) {
             return GovernanceInfo {
                 num_signers: 0,
@@ -396,7 +394,7 @@ impl MultisigSplitsContract {
                 threshold_percentage: 0,
             };
         }
-        
+
         let split = storage::get_split(&env, &split_id);
         let num_signers = split.signers.len() as u32;
         let threshold_percentage = if num_signers > 0 {

@@ -14,6 +14,8 @@ pub use crate::types::{Split, SplitStatus};
 
 const DEFAULT_MAX_PARTICIPANTS: u32 = 50;
 const MAX_NOTE_LEN: u32 = 128;
+const MAX_METADATA_ENTRIES: u32 = 16;
+const MAX_METADATA_STRING_LEN: u32 = 32;
 
 fn validate_note_len(note: &String) -> Result<(), Error> {
     if note.len() > MAX_NOTE_LEN {
@@ -129,6 +131,13 @@ impl SplitEscrowContract {
             None => String::from_str(&env, ""),
         };
 
+        // This contract currently doesn't accept arbitrary metadata at creation.
+        // Keep the on-chain metadata map empty for now.
+        let metadata = Map::new(&env);
+
+        // Whitelist functionality is supported via add/remove calls, but default is disabled.
+        let whitelist_enabled = false;
+
         let split_id = storage::get_next_split_id(&env);
         storage::bump_next_split_id(&env);
 
@@ -233,6 +242,8 @@ impl SplitEscrowContract {
 
     pub fn release_funds(env: Env, split_id: u64) -> Result<(), Error> {
         let mut split = storage::get_split(&env, split_id).ok_or(Error::SplitNotFound)?;
+        // Creator authorization is required to release escrowed funds.
+        split.creator.require_auth();
         if split.status != SplitStatus::Ready {
             return Err(Error::SplitNotReady);
         }
