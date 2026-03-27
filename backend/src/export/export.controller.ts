@@ -11,12 +11,17 @@ import {
   Res,
 } from "@nestjs/common";
 import {
+  ApiResponse,
+  ApiBadRequestResponse,
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
+  ApiConflictResponse,
+  ApiNotFoundResponse,
   ApiQuery,
+  ApiOkResponse,
   ApiParam,
+  ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import type { Response as ExpressResponse } from "express-serve-static-core";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -32,6 +37,16 @@ import {
   ReportType,
 } from "./entities/export-job.entity";
 import { ExportTemplate } from "./entities/export-template.entity";
+import {
+  ExportEligibilityResponseDto,
+  ExportFormatsResponseDto,
+  ExportJobListResponseDto,
+  ExportJobResponseDto,
+  ExportStatsResponseDto,
+  ExportTemplateResponseDto,
+  ReportTypesResponseDto,
+} from "./dto/export-response.dto";
+import { ApiErrorResponseDto } from "../common/dto/api-error-response.dto";
 
 // Typed authenticated request so every @Request() req is strongly typed
 interface AuthRequest {
@@ -53,10 +68,10 @@ export class ExportController {
   @ApiResponse({
     status: 201,
     description: "Export job created successfully",
-    type: ExportJob,
+    type: ExportJobResponseDto,
   })
-  @ApiResponse({ status: 400, description: "Invalid request parameters" })
-  @ApiResponse({ status: 403, description: "User not authorized" })
+  @ApiBadRequestResponse({ description: "Invalid request parameters", type: ApiErrorResponseDto })
+  @ApiUnauthorizedResponse({ description: "Missing or invalid authentication", type: ApiErrorResponseDto })
   async createExport(
     @Request() req: AuthRequest,
     @Body() createExportDto: CreateExportDto,
@@ -70,12 +85,8 @@ export class ExportController {
     description: "Get the status and details of an export job",
   })
   @ApiParam({ name: "id", description: "Export job ID" })
-  @ApiResponse({
-    status: 200,
-    description: "Export job details",
-    type: ExportJob,
-  })
-  @ApiResponse({ status: 404, description: "Export job not found" })
+  @ApiOkResponse({ description: "Export job details", type: ExportJobResponseDto })
+  @ApiNotFoundResponse({ description: "Export job not found", type: ApiErrorResponseDto })
   async getExportStatus(
     @Request() req: AuthRequest,
     @Param("id") id: string,
@@ -98,7 +109,8 @@ export class ExportController {
       },
     },
   })
-  @ApiResponse({ status: 404, description: "Export not found or expired" })
+  @ApiNotFoundResponse({ description: "Export not found or expired", type: ApiErrorResponseDto })
+  @ApiBadRequestResponse({ description: "Export exists but the download has expired", type: ApiErrorResponseDto })
   async downloadExport(
     @Request() req: AuthRequest,
     @Param("id") id: string,
@@ -136,22 +148,7 @@ export class ExportController {
     type: Number,
     description: "Items per page (default: 20, max: 100)",
   })
-  @ApiResponse({
-    status: 200,
-    description: "List of export jobs",
-    schema: {
-      type: "object",
-      properties: {
-        jobs: {
-          type: "array",
-          items: { $ref: "#/components/schemas/ExportJob" },
-        },
-        total: { type: "number" },
-        page: { type: "number" },
-        totalPages: { type: "number" },
-      },
-    },
-  })
+  @ApiOkResponse({ description: "List of export jobs", type: ExportJobListResponseDto })
   async listExports(
     @Request() req: AuthRequest,
     @Query("page") page = 1,
@@ -192,7 +189,7 @@ export class ExportController {
   @ApiResponse({
     status: 201,
     description: "Template created successfully",
-    type: ExportTemplate,
+    type: ExportTemplateResponseDto,
   })
   async createTemplate(
     @Request() req: AuthRequest,
@@ -206,11 +203,7 @@ export class ExportController {
     summary: "List export templates",
     description: "Get all export templates for the user",
   })
-  @ApiResponse({
-    status: 200,
-    description: "List of export templates",
-    type: [ExportTemplate],
-  })
+  @ApiOkResponse({ description: "List of export templates", type: [ExportTemplateResponseDto] })
   async listTemplates(@Request() req: AuthRequest): Promise<ExportTemplate[]> {
     return this.exportService.listTemplates(req.user.id);
   }
@@ -222,7 +215,7 @@ export class ExportController {
   })
   @ApiParam({ name: "id", description: "Template ID" })
   @ApiResponse({ status: 200, description: "Template deleted successfully" })
-  @ApiResponse({ status: 404, description: "Template not found" })
+  @ApiNotFoundResponse({ description: "Template not found", type: ApiErrorResponseDto })
   async deleteTemplate(
     @Request() req: AuthRequest,
     @Param("id") id: string,
@@ -238,7 +231,7 @@ export class ExportController {
   @ApiResponse({
     status: 201,
     description: "Export scheduled successfully",
-    type: ExportTemplate,
+    type: ExportTemplateResponseDto,
   })
   async scheduleExport(
     @Request() req: AuthRequest,
@@ -252,6 +245,7 @@ export class ExportController {
     summary: "Get available export formats",
     description: "Get list of all supported export formats",
   })
+  @ApiOkResponse({ description: "Available export formats", type: ExportFormatsResponseDto })
   getExportFormats() {
     return {
       formats: [
@@ -301,6 +295,7 @@ export class ExportController {
     summary: "Get available report types",
     description: "Get list of all supported report types",
   })
+  @ApiOkResponse({ description: "Available report types", type: ReportTypesResponseDto })
   getReportTypes() {
     return {
       reportTypes: [
@@ -343,7 +338,7 @@ export class ExportController {
     summary: "Check export eligibility",
     description: "Check if user can create an export and view limits",
   })
-  @ApiResponse({ status: 200, description: "Eligibility status and limits" })
+  @ApiOkResponse({ description: "Eligibility status and limits", type: ExportEligibilityResponseDto })
   async checkEligibility(@Request() req: AuthRequest) {
     return this.exportService.checkEligibility(req.user.id);
   }
@@ -353,7 +348,7 @@ export class ExportController {
     summary: "Get export statistics",
     description: "Get statistics about user's export usage",
   })
-  @ApiResponse({ status: 200, description: "Export statistics" })
+  @ApiOkResponse({ description: "Export statistics", type: ExportStatsResponseDto })
   async getExportStats(@Request() req: AuthRequest) {
     const exports = await this.exportService.listExports(req.user.id, 1, 1000);
 
