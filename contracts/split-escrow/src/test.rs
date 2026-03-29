@@ -70,10 +70,8 @@ fn test_fee_deducted_and_sent_to_treasury_on_release() {
         &creator,
         &String::from_str(&env, "Dinner"),
         &10_000,
-        &Map::new(&env),
         &obligations,
         &None,
-        &false,
         &None,
         &None,
     );
@@ -104,10 +102,9 @@ fn test_admin_can_update_fee_and_treasury() {
         &creator,
         &String::from_str(&env, "A"),
         &1_000,
-        &Map::new(&env),
-        &None,
-        &false,
         &obligations_a,
+        &None,
+        &None,
         &None,
     );
     client.deposit(&split_a, &participant, &1_000);
@@ -125,9 +122,9 @@ fn test_admin_can_update_fee_and_treasury() {
         &creator,
         &String::from_str(&env, "B"),
         &2_000,
-        &Map::new(&env),
+        &obligations_b,
         &None,
-        &false,
+        &None,
         &None,
     );
     client.deposit(&split_b, &participant, &2_000);
@@ -162,10 +159,8 @@ fn test_fees_collected_event_emitted() {
         &creator,
         &String::from_str(&env, "Event"),
         &1_000,
-        &Map::new(&env),
         &obligations,
         &None,
-        &false,
         &None,
         &None,
     );
@@ -231,6 +226,7 @@ fn test_partial_deposits() {
         &obligations,
         &None,
         &None,
+        &None,
     );
 
     // Participant 1 pays half their obligation.
@@ -276,6 +272,7 @@ fn test_cancel_partial_refunds() {
         &obligations,
         &None,
         &None,
+        &None,
     );
 
     client.deposit(&split_id, &participant, &3_000);
@@ -309,6 +306,7 @@ fn test_toggle_whitelist_allows_creator_to_restrict_access() {
         &creator,
         &String::from_str(&env, "Restricted"),
         &2_000,
+        &Map::new(&env),
         &None,
         &None,
         &None,
@@ -341,6 +339,7 @@ fn test_create_escrow_with_metadata_stores_correctly() {
         &creator,
         &String::from_str(&env, "Metadata test"),
         &1_000,
+        &Map::new(&env),
         &None,
         &None,
         &Some(metadata.clone()),
@@ -383,7 +382,7 @@ fn test_default_max_participants_is_50() {
         &100,
         &Map::new(&env),
         &None,
-        &false,
+        &None,
         &None,
     );
     let escrow = client.get_escrow(&escrow_id);
@@ -403,7 +402,7 @@ fn test_explicit_max_participants_stored_in_get_escrow() {
         &300,
         &Map::new(&env),
         &Some(cap),
-        &false,
+        &None,
         &None,
     );
     let escrow = client.get_escrow(&escrow_id);
@@ -427,7 +426,7 @@ fn test_deposit_rejected_when_participant_cap_exceeded() {
         &3_000,
         &Map::new(&env),
         &Some(2u32),
-        &false,
+        &None,
         &None,
     );
 
@@ -455,7 +454,7 @@ fn test_existing_participant_can_deposit_again_without_increasing_count() {
         &2_000,
         &Map::new(&env),
         &Some(1u32),
-        &false,
+        &None,
         &None,
     );
     client.deposit(&escrow_id, &p1, &1_000);
@@ -477,8 +476,8 @@ fn test_note_stored_on_create_and_get_note() {
         &100,
         &Map::new(&env),
         &None,
-        &false,
         &Some(String::from_str(&env, text)),
+        &None,
     );
     assert_eq!(client.get_note(&split_id), String::from_str(&env, text));
     assert_eq!(
@@ -498,7 +497,7 @@ fn test_creator_can_update_note_while_pending_and_ready() {
         &2_000,
         &Map::new(&env),
         &None,
-        &false,
+        &None,
         &None,
     );
     client.set_note(&split_id, &String::from_str(&env, "v1"));
@@ -530,8 +529,8 @@ fn test_note_over_128_bytes_rejected_on_create_and_set() {
         &100,
         &Map::new(&env),
         &None,
-        &false,
         &Some(long.clone()),
+        &None,
     );
     assert!(res.is_err());
 
@@ -541,7 +540,7 @@ fn test_note_over_128_bytes_rejected_on_create_and_set() {
         &100,
         &Map::new(&env),
         &None,
-        &false,
+        &None,
         &None,
     );
     let res2 = client.try_set_note(&split_id, &long);
@@ -557,7 +556,7 @@ fn test_note_updated_emits_event() {
         &100,
         &Map::new(&env),
         &None,
-        &false,
+        &None,
         &None,
     );
     let before = env.events().all().len();
@@ -574,7 +573,7 @@ fn test_cancel_split() {
         &100,
         &Map::new(&env),
         &None,
-        &false,
+        &None,
         &None,
     );
     client.cancel_split(&split_id);

@@ -40,3 +40,9 @@ pub fn emit_note_updated(env: &Env, split_id: u64, note: &String) {
     env.events()
         .publish(("NoteUpdated", "split_id"), (split_id, note.clone()));
 }
+pub fn emit_contract_upgraded(env: &Env, old_version: String, new_version: String) {
+    env.events().publish(
+        (Symbol::new(env, "ContractUpgraded"),),
+        (old_version, new_version),
+    );
+}

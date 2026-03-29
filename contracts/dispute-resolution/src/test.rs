@@ -51,7 +51,7 @@ fn setup() -> (
         &10_000i128,
         &Map::new(&env),
         &None,
-        &false,
+        &None,
         &None,
     );
     token_admin_client.mint(&participant, &10_000i128);

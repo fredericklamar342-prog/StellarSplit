@@ -96,10 +96,8 @@ impl SplitEscrowContract {
         creator: Address,
         description: String,
         total_amount: i128,
-        metadata: Map<String, String>,
         obligations: Map<Address, i128>,
         max_participants: Option<u32>,
-        whitelist_enabled: bool,
         note: Option<String>,
         metadata: Option<Map<String, String>>,
     ) -> Result<u64, Error> {
@@ -131,8 +129,6 @@ impl SplitEscrowContract {
             return Err(Error::ParticipantCapExceeded);
         }
 
-        validate_metadata(&metadata)?;
-
         let note_stored = match note {
             Some(n) => {
                 validate_note_len(&n)?;
@@ -149,8 +145,6 @@ impl SplitEscrowContract {
             None => Map::new(&env),
         };
 
-        // Whitelist functionality is supported via add/remove calls, but default is disabled.
-        // Toggling is now possible via `toggle_whitelist`.
         let whitelist_enabled = false;
 
         let split_id = storage::get_next_split_id(&env);
@@ -272,8 +266,6 @@ impl SplitEscrowContract {
             split.participants.push_back(participant.clone());
         }
 
-        // Track per-participant deposited balances so we can refund on dispute outcomes.
-        let previous_balance = split.balances.get(participant.clone()).unwrap_or(0i128);
         split
             .balances
             .set(participant.clone(), previous_balance + amount);
@@ -282,9 +274,6 @@ impl SplitEscrowContract {
         let token_client = token::Client::new(&env, &token_address);
         token_client.transfer(&participant, &env.current_contract_address(), &amount);
 
-        split
-            .balances
-            .set(participant.clone(), current_balance + amount);
         split.deposited_amount += amount;
 
         // Check if all obligations are met to transition to Ready.
