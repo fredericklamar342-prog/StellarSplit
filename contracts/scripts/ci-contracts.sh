@@ -5,16 +5,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTRACTS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Supported contracts: all crates that compile cleanly under the pinned Soroban toolchain.
-#
-# Excluded (broken):
-# - split-escrow: many compilation errors (draft/broken source)
-# - multi-sig-splits: E0507 move error (needs ownership fix)
+# All production-ready contracts should be listed here.
 SUPPORTED_CONTRACTS=(
   "achievement-badges"
   "dispute-resolution"
   "flash-loan"
+  "multi-sig-splits"
   "path-payment"
+  "split-escrow"
   "split-template"
   "staking"
 )
