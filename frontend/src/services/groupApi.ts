@@ -1,4 +1,4 @@
-import { Group, ApiResponse } from "../types/split-group";
+import type { Group, ApiResponse } from "../types/split-group";
 
 const API_BASE = "/api/groups";
 

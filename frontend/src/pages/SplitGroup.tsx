@@ -1,48 +1,4 @@
-import React, { useEffect, useState } from "react";
-import { fetchGroups, createGroup, startSplit } from "../services/groupApi";
-import { Group } from "../types/split-group";
-import { GroupList } from "../components/SplitGroup/GroupList";
-import { GroupForm } from "../components/SplitGroup/GroupForm";
-
-export default function SplitGroupPage() {
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchGroups()
-      .then((res) => {
-        if (res.error) setError(res.error);
-        else setGroups(res.data);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  const handleCreateGroup = async (name: string, members: string[]) => {
-    const res = await createGroup(name, members);
-    if (!res.error) setGroups([...groups, res.data]);
-  };
-
-  const handleStartSplit = async (group: Group) => {
-    const res = await startSplit(group.id);
-    if (!res.error) {
-      // Navigate to split creation page with group members
-      console.log("Split started with members:", group.members);
-    }
-  };
-
-  if (loading) return <div>Loading groups...</div>;
-  if (error) return <div>Error: {error}</div>;
-
-  return (
-    <div>
-      <h1>Split Groups</h1>
-      <GroupForm onCreate={handleCreateGroup} />
-      <GroupList groups={groups} onSelect={handleStartSplit} />
-    </div>
-  );
-}
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Plus,
   Search,
@@ -61,9 +17,7 @@ import { GroupCard } from "@components/SplitGroup/GroupCard";
 import { CreateGroupModal } from "@components/SplitGroup/CreateGroupModal";
 import { MOCK_GROUPS } from "@components/SplitGroup/data";
 
-
 type SortKey = "recent" | "name" | "spent";
-
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
@@ -86,7 +40,6 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
     </div>
   );
 }
-
 
 function StatPill({
   icon,
@@ -117,72 +70,81 @@ function StatPill({
   );
 }
 
-
 export default function SplitGroup() {
   const [groups, setGroups] = useState<Group[]>(MOCK_GROUPS);
   const [createOpen, setCreateOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("recent");
 
-  // Derived
   const recentGroups = useMemo(
     () =>
       [...groups]
         .sort((a, b) => b.lastActivityAt.getTime() - a.lastActivityAt.getTime())
         .slice(0, 3),
-    [groups]
+    [groups],
   );
 
   const filteredGroups = useMemo(() => {
     let list = [...groups];
+
     if (query) {
       const q = query.toLowerCase();
       list = list.filter(
-        (g) =>
-          g.name.toLowerCase().includes(q) ||
-          g.description?.toLowerCase().includes(q) ||
-          g.members.some((m) => m.name.toLowerCase().includes(q))
+        (group) =>
+          group.name.toLowerCase().includes(q) ||
+          group.description?.toLowerCase().includes(q) ||
+          group.members.some((member) => member.name.toLowerCase().includes(q)),
       );
     }
-    if (sort === "recent")
-      list.sort((a, b) => b.lastActivityAt.getTime() - a.lastActivityAt.getTime());
-    if (sort === "name") list.sort((a, b) => a.name.localeCompare(b.name));
-    if (sort === "spent") list.sort((a, b) => b.totalSpent - a.totalSpent);
+
+    if (sort === "recent") {
+      list.sort(
+        (a, b) => b.lastActivityAt.getTime() - a.lastActivityAt.getTime(),
+      );
+    }
+
+    if (sort === "name") {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    if (sort === "spent") {
+      list.sort((a, b) => b.totalSpent - a.totalSpent);
+    }
+
     return list;
   }, [groups, query, sort]);
 
   const totalSpent = useMemo(
-    () => groups.reduce((sum, g) => sum + g.totalSpent, 0),
-    [groups]
+    () => groups.reduce((sum, group) => sum + group.totalSpent, 0),
+    [groups],
   );
   const totalMembers = useMemo(
-    () => new Set(groups.flatMap((g) => g.members.map((m) => m.id))).size,
-    [groups]
+    () =>
+      new Set(groups.flatMap((group) => group.members.map((member) => member.id)))
+        .size,
+    [groups],
   );
 
-  // Handlers
-  const handleCreated = (g: Group) => setGroups((prev) => [g, ...prev]);
-  const handleUpdate = (g: Group) =>
-    setGroups((prev) => prev.map((x) => (x.id === g.id ? g : x)));
+  const handleCreated = (group: Group) => setGroups((prev) => [group, ...prev]);
+  const handleUpdate = (group: Group) =>
+    setGroups((prev) =>
+      prev.map((entry) => (entry.id === group.id ? group : entry)),
+    );
   const handleDelete = (id: string) =>
-    setGroups((prev) => prev.filter((g) => g.id !== id));
-  const handleCreateSplit = (g: Group) => {
-    // Hook into your split flow — passes the group with its members
-    console.log("Creating split for group:", g.name, g.members);
-    alert(`Create split for "${g.name}" — connect your split creation flow here.`);
+    setGroups((prev) => prev.filter((group) => group.id !== id));
+  const handleCreateSplit = (group: Group) => {
+    console.log("Creating split for group:", group.name, group.members);
+    alert(`Create split for "${group.name}" — connect your split creation flow here.`);
   };
 
-  const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  const sortOptions: Array<{ key: SortKey; label: string }> = [
     { key: "recent", label: "Recent" },
-    { key: "name", label: "A–Z" },
+    { key: "name", label: "A-Z" },
     { key: "spent", label: "Spent" },
   ];
 
   return (
-    <div className="min-h-screen p-6" >
-  
-
-      {/* Subtle background texture */}
+    <div className="min-h-screen p-6">
       <div
         className="fixed inset-0 pointer-events-none"
         style={{
@@ -192,7 +154,6 @@ export default function SplitGroup() {
       />
 
       <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-10">
-        {/* Page header */}
         <div className="flex items-start justify-between mb-8">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -222,7 +183,6 @@ export default function SplitGroup() {
           </Button>
         </div>
 
-        {/* Summary stats */}
         {groups.length > 0 && (
           <div className="grid grid-cols-3 gap-3 mb-8">
             <StatPill
@@ -246,7 +206,6 @@ export default function SplitGroup() {
           </div>
         )}
 
-        {/* Recent groups */}
         {recentGroups.length > 0 && !query && (
           <section className="mb-8">
             <div className="flex items-center gap-2 mb-3">
@@ -256,10 +215,10 @@ export default function SplitGroup() {
               </h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {recentGroups.map((g) => (
+              {recentGroups.map((group) => (
                 <GroupCard
-                  key={g.id}
-                  group={g}
+                  key={group.id}
+                  group={group}
                   isRecent
                   onUpdate={handleUpdate}
                   onDelete={handleDelete}
@@ -270,13 +229,12 @@ export default function SplitGroup() {
           </section>
         )}
 
-        {/* Search + Sort */}
         <div className="flex items-center gap-3 mb-5">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
             <Input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(event) => setQuery(event.target.value)}
               placeholder="Search groups, members…"
               className="pl-9 pr-9 bg-zinc-800/60 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 focus-visible:ring-amber-500/30 focus-visible:border-amber-500/50 h-10"
             />
@@ -291,24 +249,23 @@ export default function SplitGroup() {
           </div>
           <div className="flex items-center gap-1 bg-zinc-800/60 border border-zinc-700 rounded-lg p-1">
             <SlidersHorizontal className="h-3.5 w-3.5 text-zinc-500 ml-1.5 mr-0.5" />
-            {SORT_OPTIONS.map((o) => (
+            {sortOptions.map((option) => (
               <button
-                key={o.key}
-                onClick={() => setSort(o.key)}
+                key={option.key}
+                onClick={() => setSort(option.key)}
                 className={cn(
                   "px-3 py-1.5 rounded-md text-xs font-semibold transition-all",
-                  sort === o.key
+                  sort === option.key
                     ? "bg-amber-500 text-zinc-900"
-                    : "text-zinc-500 hover:text-zinc-300"
+                    : "text-zinc-500 hover:text-zinc-300",
                 )}
               >
-                {o.label}
+                {option.label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* All groups grid */}
         {filteredGroups.length === 0 && query ? (
           <div className="text-center py-16 text-zinc-500">
             <Search className="h-10 w-10 mx-auto mb-3 opacity-30" />
@@ -332,10 +289,10 @@ export default function SplitGroup() {
               </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredGroups.map((g) => (
+              {filteredGroups.map((group) => (
                 <GroupCard
-                  key={g.id}
-                  group={g}
+                  key={group.id}
+                  group={group}
                   onUpdate={handleUpdate}
                   onDelete={handleDelete}
                   onCreateSplit={handleCreateSplit}
@@ -346,7 +303,6 @@ export default function SplitGroup() {
         )}
       </div>
 
-      {/* Create modal */}
       <CreateGroupModal
         open={createOpen}
         onOpenChange={setCreateOpen}
