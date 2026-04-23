@@ -5,18 +5,14 @@ import {
   Delete,
   Param,
   Body,
-  Req,
 } from "@nestjs/common";
-import { Request } from "express";
 import { ShortLinksService } from "./short-links.service";
 import { GenerateLinkDto } from "./dto/generate-link.dto";
 import { NfcPayloadService } from "./nfc-payload.service";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
+import { AuthUser } from "../auth/types/auth-user.interface";
 
-interface AuthRequest extends Request {
-  user: { id: string; wallet: string };
-}
-
-@Controller("api/short-links")
+@Controller("short-links")
 export class ShortLinksController {
   constructor(
     private readonly service: ShortLinksService,
@@ -29,20 +25,20 @@ export class ShortLinksController {
   }
 
   @Get(":shortCode/resolve")
-  resolve(@Param("shortCode") code: string, @Req() req: AuthRequest) {
+  resolve(@Param("shortCode") code: string, @Req() req: any, @CurrentUser() user?: AuthUser) {
     return this.service.resolve(
       code,
       req.ip ?? "",
       Array.isArray(req.headers["user-agent"])
         ? (req.headers["user-agent"][0] ?? "")
         : (req.headers["user-agent"] ?? ""),
-      req.user?.id,
+      user?.id,
     );
   }
 
   @Get(":shortCode/analytics")
-  analytics(@Param("shortCode") code: string, @Req() req: AuthRequest) {
-    return this.service.analytics(code, req.user.wallet);
+  analytics(@Param("shortCode") code: string, @CurrentUser() user: AuthUser) {
+    return this.service.analytics(code, user.walletAddress);
   }
 
   @Post("nfc-payload/:splitId")
@@ -52,7 +48,7 @@ export class ShortLinksController {
   }
 
   @Delete(":shortCode")
-  remove(@Param("shortCode") code: string, @Req() req: AuthRequest) {
-    return this.service.remove(code, req.user.wallet);
+  remove(@Param("shortCode") code: string, @CurrentUser() user: AuthUser) {
+    return this.service.remove(code, user.walletAddress);
   }
 }

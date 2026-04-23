@@ -18,10 +18,8 @@ import { CreateCollaborationDto } from './dto/create-collaboration.dto';
 import { RespondToCollaborationDto, RemoveCollaborationDto } from './dto/update-collaboration.dto';
 import { CollaborationStatus } from './entities/collaboration.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-
-interface RequestWithUser extends Request {
-  user: { wallet: string };
-}
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { AuthUser } from '../auth/types/auth-user.interface';
 
 @Controller('collaborations')
 @UseGuards(JwtAuthGuard)
@@ -30,15 +28,15 @@ export class CollaborationController {
 
   @Post()
   async createCollaboration(
-    @Req() req: RequestWithUser,
+    @CurrentUser() user: AuthUser,
     @Body() createDto: CreateCollaborationDto,
   ) {
-    return this.collaborationService.createCollaboration(req.user.wallet, createDto);
+    return this.collaborationService.createCollaboration(user.walletAddress, createDto);
   }
 
   @Get()
   async getCollaborations(
-    @Req() req: RequestWithUser,
+    @CurrentUser() user: AuthUser,
     @Query('status') status?: CollaborationStatus,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -55,7 +53,7 @@ export class CollaborationController {
     }
 
     return this.collaborationService.getCollaborationsForUser(
-      req.user.wallet,
+      user.walletAddress,
       status,
       pageNum,
       limitNum,
@@ -63,36 +61,36 @@ export class CollaborationController {
   }
 
   @Get('stats')
-  async getCollaborationStats(@Req() req: RequestWithUser) {
-    return this.collaborationService.getCollaborationStats(req.user.wallet);
+  async getCollaborationStats(@CurrentUser() user: AuthUser) {
+    return this.collaborationService.getCollaborationStats(user.walletAddress);
   }
 
   @Get(':id')
   async getCollaborationById(
     @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: RequestWithUser,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.collaborationService.getCollaborationById(id, req.user.wallet);
+    return this.collaborationService.getCollaborationById(id, user.walletAddress);
   }
 
   @Put(':id/respond')
   async respondToCollaboration(
     @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: RequestWithUser,
+    @CurrentUser() user: AuthUser,
     @Body() responseDto: RespondToCollaborationDto,
   ) {
-    return this.collaborationService.respondToCollaboration(id, req.user.wallet, responseDto);
+    return this.collaborationService.respondToCollaboration(id, user.walletAddress, responseDto);
   }
 
   @Delete(':id')
   async removeCollaboration(
     @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: RequestWithUser,
+    @CurrentUser() user: AuthUser,
     @Body() removeDto: RemoveCollaborationDto,
   ) {
     return this.collaborationService.removeCollaboration(
       id,
-      req.user.wallet,
+      user.walletAddress,
       removeDto.removalReason,
     );
   }
@@ -100,12 +98,12 @@ export class CollaborationController {
   @Get('track/:trackId')
   async getTrackCollaborations(
     @Param('trackId') trackId: string,
-    @Req() req: RequestWithUser,
+    @CurrentUser() user: AuthUser,
     @Query('status') status?: CollaborationStatus,
   ) {
     // This endpoint would be useful for showing collaborations on a specific track
     // For now, we'll delegate to the main service method
-    const result = await this.collaborationService.getCollaborationsForUser(req.user.wallet, status);
+    const result = await this.collaborationService.getCollaborationsForUser(user.walletAddress, status);
     
     // Filter by track ID
     const trackCollaborations = result.collaborations.filter(

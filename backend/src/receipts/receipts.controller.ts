@@ -23,7 +23,7 @@ interface AuthRequest extends Request {
   user: { walletAddress: string };
 }
 
-@Controller("api/receipts")
+@Controller("receipts")
 @UseGuards(JwtAuthGuard, AuthorizationGuard)
 export class ReceiptsController {
   constructor(private readonly service: ReceiptsService) {}

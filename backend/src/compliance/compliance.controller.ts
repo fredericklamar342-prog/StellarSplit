@@ -10,7 +10,7 @@ interface AuthRequest {
   user: { walletAddress: string };
 }
 
-@Controller('api/compliance')
+@Controller('compliance')
 @UseGuards(JwtAuthGuard, AuthorizationGuard)
 export class ComplianceController {
     constructor(private readonly complianceService: ComplianceService) { }
