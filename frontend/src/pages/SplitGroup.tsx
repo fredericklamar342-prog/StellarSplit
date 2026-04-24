@@ -15,7 +15,7 @@ import { cn, formatCurrency } from "@utils/format";
 import { type Group } from "@src/types/split-group";
 import { GroupCard } from "@components/SplitGroup/GroupCard";
 import { CreateGroupModal } from "@components/SplitGroup/CreateGroupModal";
-import { MOCK_GROUPS } from "@components/SplitGroup/data";
+import { getSplitGroupDataSource } from "@src/services/splitGroupDataSource";
 
 type SortKey = "recent" | "name" | "spent";
 
@@ -71,10 +71,27 @@ function StatPill({
 }
 
 export default function SplitGroup() {
-  const [groups, setGroups] = useState<Group[]>(MOCK_GROUPS);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("recent");
+  const [splitFeedback, setSplitFeedback] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+    const ds = getSplitGroupDataSource();
+    ds.list()
+      .then((loaded) => {
+        if (mounted) setGroups(loaded);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const recentGroups = useMemo(
     () =>
@@ -125,16 +142,42 @@ export default function SplitGroup() {
     [groups],
   );
 
-  const handleCreated = (group: Group) => setGroups((prev) => [group, ...prev]);
-  const handleUpdate = (group: Group) =>
-    setGroups((prev) =>
-      prev.map((entry) => (entry.id === group.id ? group : entry)),
+  const handleCreated = async (group: Group) => {
+    const optimistic = [group, ...groups];
+    setGroups(optimistic);
+    await getSplitGroupDataSource().create(group);
+  };
+  const handleUpdate = async (group: Group) => {
+    const previous = groups;
+    const optimistic = previous.map((entry) =>
+      entry.id === group.id ? group : entry,
     );
-  const handleDelete = (id: string) =>
-    setGroups((prev) => prev.filter((group) => group.id !== id));
-  const handleCreateSplit = (group: Group) => {
-    console.log("Creating split for group:", group.name, group.members);
-    alert(`Create split for "${group.name}" — connect your split creation flow here.`);
+    setGroups(optimistic);
+    try {
+      await getSplitGroupDataSource().update(group);
+    } catch {
+      setGroups(previous);
+    }
+  };
+  const handleDelete = async (id: string) => {
+    const previous = groups;
+    const optimistic = previous.filter((group) => group.id !== id);
+    setGroups(optimistic);
+    try {
+      await getSplitGroupDataSource().remove(id);
+    } catch {
+      setGroups(previous);
+    }
+  };
+  const handleCreateSplit = async (group: Group) => {
+    const updated = await getSplitGroupDataSource().touchSplit(group.id);
+    if (updated) {
+      setGroups((prev) =>
+        prev.map((entry) => (entry.id === updated?.id ? updated : entry)),
+      );
+    }
+    setSplitFeedback(`Split creation started for "${group.name}".`);
+    window.setTimeout(() => setSplitFeedback(null), 2500);
   };
 
   const sortOptions: Array<{ key: SortKey; label: string }> = [
@@ -183,7 +226,15 @@ export default function SplitGroup() {
           </Button>
         </div>
 
-        {groups.length > 0 && (
+        {splitFeedback && (
+          <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+            {splitFeedback}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-sm text-zinc-500 py-8">Loading groups...</div>
+        ) : groups.length > 0 && (
           <div className="grid grid-cols-3 gap-3 mb-8">
             <StatPill
               icon={<Users className="h-4 w-4" />}
@@ -266,7 +317,7 @@ export default function SplitGroup() {
           </div>
         </div>
 
-        {filteredGroups.length === 0 && query ? (
+        {loading ? null : filteredGroups.length === 0 && query ? (
           <div className="text-center py-16 text-zinc-500">
             <Search className="h-10 w-10 mx-auto mb-3 opacity-30" />
             <p className="font-medium">No groups match &ldquo;{query}&rdquo;</p>

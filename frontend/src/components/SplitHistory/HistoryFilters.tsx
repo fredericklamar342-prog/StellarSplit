@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import type { SplitStatus, SplitRole } from "../../pages/SplitHistoryPage";
+import type { SplitStatus, SplitRole } from "../../services/splitHistoryRepository";
 
 export type SortOption =
   | "date-desc"

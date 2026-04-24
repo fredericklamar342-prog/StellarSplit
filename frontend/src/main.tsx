@@ -1,18 +1,14 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter } from "react-router-dom";
 import "./index.css";
 import HomePage from "./pages/Home";
 import RootLayout from "./layouts/RootLayout";
-import { WalletProvider } from "./hooks/use-wallet";
-import { ThemeProvider } from "./components/ThemeContext";
-import { CollaborationProvider } from "./components/Collaboration";
 import RouteErrorBoundary from "./components/routing/RouteErrorBoundary";
 import RoutePending from "./components/routing/RoutePending";
 import { bootstrapTheme } from "./utils/themeBootstrap";
 import "./i18n/config";
-import InstallPrompt from "./components/InstallPrompt";
-import { registerServiceWorker } from "./utils/sw-register";
+import App from "./App";
 
 // Apply theme before hydration to prevent flash
 bootstrapTheme();
@@ -86,17 +82,8 @@ const router = createBrowserRouter([
   },
 ]);
 
-void registerServiceWorker();
-
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ThemeProvider>
-      <WalletProvider>
-        <CollaborationProvider>
-          <InstallPrompt />
-          <RouterProvider router={router} />
-        </CollaborationProvider>
-      </WalletProvider>
-    </ThemeProvider>
+    <App router={router} />
   </StrictMode>,
 );

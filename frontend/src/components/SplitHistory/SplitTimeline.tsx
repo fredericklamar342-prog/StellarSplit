@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { formatDate, formatCurrency } from "../../utils/format";
-import type { HistorySplit } from "../../pages/SplitHistoryPage";
+import type { HistorySplit } from "../../services/splitHistoryRepository";
 import { SplitCard } from "./SplitCard";
 
 interface SplitTimelineProps {

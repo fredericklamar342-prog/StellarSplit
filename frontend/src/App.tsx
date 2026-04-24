@@ -1,32 +1,14 @@
-import { useRef } from "react";
-import { SplitDetailPage } from "./pages/SplitView/SplitDetailPage";
+import { useEffect } from "react";
+import { RouterProvider, type Router } from "react-router-dom";
+import { AppProviders } from "./components/AppProviders";
+import { registerServiceWorker } from "./utils/sw-register";
 
-function App() {
-  const announceRef = useRef<HTMLDivElement>(null);
+function App({ router }: { router: Router }) {
+  useEffect(() => {
+    void registerServiceWorker();
+  }, []);
 
-  // Function to announce messages to screen readers
-  // Service worker registration is handled in `main.tsx`
-
-  return (
-    <>
-      {/* Live region for screen reader announcements */}
-      <div
-        ref={announceRef}
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        className="sr-only"
-      />
-
-      <main
-        id="main-content"
-        className="antialiased text-gray-900 bg-gray-50 min-h-screen"
-        tabIndex={-1}
-      >
-        <SplitDetailPage />
-      </main>
-    </>
-  );
+  return <AppProviders><RouterProvider router={router} /></AppProviders>;
 }
 
 export default App;
