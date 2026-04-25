@@ -7,6 +7,7 @@ mod tests {
     };
 
     use crate::types::{Participant, SplitType};
+    use crate::Error;
     use crate::{SplitTemplateContract, SplitTemplateContractClient};
 
     fn setup() -> (Env, Address, SplitTemplateContractClient<'static>) {
@@ -263,6 +264,23 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
+    fn test_duplicate_name_rejection() {
+        let (env, creator, client) = setup();
+
+        let name = SorobanString::from_str(&env, "Duplicate Name Test");
+        let participants1 = create_equal_split_participants(&env, 2);
+        let participants2 = create_equal_split_participants(&env, 3); // Different participants
+
+        // Create first template
+        env.ledger().set_sequence(1000);
+        let _id1 = client.create_template(&creator, &name, &SplitType::Equal, &participants1);
+
+        // Attempt to create second template with same name should panic
+        let _ = client.create_template(&creator, &name, &SplitType::Equal, &participants2);
+    }
+
+    #[test]
     fn test_id_hex_format_validation() {
         let (env, creator, client) = setup();
 
@@ -302,6 +320,21 @@ mod tests {
         assert_eq!(template.name, name);
         assert_eq!(template.split_type, SplitType::Equal);
         assert_eq!(template.participants.len(), 3);
+    }
+
+    #[test]
+    fn test_get_template_by_name_success() {
+        let (env, creator, client) = setup();
+
+        let name = SorobanString::from_str(&env, "Named Template");
+        let participants = create_equal_split_participants(&env, 2);
+
+        let template_id = client.create_template(&creator, &name, &SplitType::Equal, &participants);
+
+        let template = client.get_template_by_name(&creator, &name);
+        assert_eq!(template.id, template_id);
+        assert_eq!(template.creator, creator);
+        assert_eq!(template.name, name);
     }
 
     #[test]
