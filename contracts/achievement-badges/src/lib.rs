@@ -9,6 +9,7 @@ use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Vec};
 
 mod eligibility;
 mod events;
+mod metadata;
 mod storage;
 mod types;
 
@@ -17,6 +18,7 @@ mod test;
 
 pub use eligibility::*;
 pub use events::*;
+pub use metadata::*;
 pub use storage::*;
 pub use types::*;
 
@@ -119,5 +121,66 @@ impl AchievementBadgesContract {
     /// Get metadata for a badge type
     pub fn get_badge_metadata(env: Env, badge_type: BadgeType) -> BadgeMetadata {
         storage::get_badge_metadata(&env, &badge_type)
+    }
+
+    // ========================================================================
+    // Stable API for Standardized Metadata & Ownership Information
+    // ========================================================================
+
+    /// Get standardized metadata for a badge type
+    ///
+    /// Returns consistent, well-formatted metadata through a stable API.
+    /// This is the recommended way to retrieve badge metadata.
+    pub fn badge_metadata_standard(env: Env, badge_type: BadgeType) -> BadgeMetadata {
+        metadata::get_metadata_for_badge(&env, &badge_type)
+    }
+
+    /// Get complete ownership information for a specific badge
+    ///
+    /// Returns detailed ownership info including owner, token ID, badge type,
+    /// mint timestamp, and standardized metadata.
+    pub fn get_badge_ownership(
+        env: Env,
+        user: Address,
+        badge_type: BadgeType,
+    ) -> Option<BadgeOwnershipInfo> {
+        // Get user's badges
+        let user_badges = storage::get_user_badges(&env, &user);
+
+        // Find the badge of the specified type
+        for badge in &user_badges {
+            if &badge.badge_type == &badge_type {
+                return Some(BadgeOwnershipInfo::from_user_badge(&env, user, badge));
+            }
+        }
+
+        None
+    }
+
+    /// Get comprehensive badge collection information for a user
+    ///
+    /// Returns all badges owned by a user with standardized metadata
+    /// and a summary of the collection.
+    pub fn get_user_badge_collection(env: Env, user: Address) -> UserBadgeCollection {
+        let user_badges = storage::get_user_badges(&env, &user);
+        let badge_count = user_badges.len() as u32;
+
+        let mut badges: Vec<BadgeOwnershipInfo> = Vec::new(&env);
+        for user_badge in &user_badges {
+            badges.push_back(BadgeOwnershipInfo::from_user_badge(&env, user.clone(), user_badge));
+        }
+
+        UserBadgeCollection {
+            owner: user,
+            badge_count,
+            badges,
+        }
+    }
+
+    /// Check if a user owns a specific badge type
+    ///
+    /// Stable query to verify badge ownership.
+    pub fn has_badge(env: Env, user: Address, badge_type: BadgeType) -> bool {
+        storage::has_minted_badge(&env, &user, &badge_type)
     }
 }
